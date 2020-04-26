@@ -11,6 +11,9 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - uses: actions-rs/toolchain@v1
+      with:
+              toolchain: nightly
     - name: Build
       run: cargo build --verbose --release
     - name: Run tests
