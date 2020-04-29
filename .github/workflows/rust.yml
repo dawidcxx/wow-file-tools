@@ -19,14 +19,15 @@ jobs:
       run: cargo build --verbose --release
     - name: Run tests
       run: cargo test --verbose
-    - name: Publish Release
+    - name: Create Release
       id: create_release
       uses: actions/create-release@latest
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} 
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.sha }}
-        release_name: Release ${{ github.sha }}        
-        body: |
-            This release has been generated automatically. 
-       
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}        
+        body: This release has been generated automatically. 
+        draft: false
+        prerelease: false
+             
