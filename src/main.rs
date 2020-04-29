@@ -12,15 +12,13 @@ use serde::{Serialize, Serializer};
 use std::error::Error;
 use serde::ser::SerializeStruct;
 use crate::formats::adt::AdtFile;
-use std::convert::TryInto;
-use std::borrow::Borrow;
 
 
 fn main() {
     let root_cmd = RootCmd::parse();
     let cmd_result = handle_cmd(root_cmd)
         .map_err(|error| ProgramErr { error });
-
+    
     std::process::exit(match cmd_result {
         Err(e) => {
             let json = serde_json::to_string_pretty(&e).unwrap();
@@ -50,34 +48,37 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
                 }
             };
 
-            let v: impl Serialize = match extension {
-                "adt" => {
-                    AdtFile::from_path(file_path_str)?
-                }
-                _ => {
-                    let err_msg = format!("Unsupported file extension: ({})", extension);
-                    return Err(err_msg.into());
-                }
+            let view_result = get_view_result(file_path_str, extension)?;
+
+            let output_str = if v.compact {
+                serde_json::to_string(&view_result)?
+            } else {
+                serde_json::to_string_pretty(&view_result)?
             };
 
-            let res = match root_cmd.compact {
-                true => { serde_json::to_string(&v)? }
-                false => { serde_json::to_string_pretty(&v)? }
-            };
-
-            println!("{}", res);
+            println!("{}", output_str);
 
             Ok(())
         }
     };
 }
 
+fn get_view_result(file_path_str: &str, extension: &str) -> R<impl Serialize> {
+    let res: impl Serialize = match extension {
+        "adt" => {
+            AdtFile::from_path(file_path_str)?
+        }
+        _ => {
+            let err_msg = format!("Unsupported file extension: ({})", extension);
+            return Err(err_msg.into());
+        }
+    };
+    Ok(res)
+}
 
 #[derive(Clap)]
 #[clap(version = "1.0", author = "ArenaCraft")]
 struct RootCmd {
-    #[clap(short = "c", long = "compact", help = "Output JSON will no longer be pretty printed")]
-    compact: bool,
     #[clap(subcommand)]
     cmd: Cmd,
 }
@@ -91,6 +92,9 @@ enum Cmd {
 struct ViewCmd {
     #[clap(short = "f", long = "file")]
     file: String,
+
+    #[clap(short = "c", long = "compact", help = "Output JSON will no longer be pretty printed")]
+    compact: bool,
 }
 
 struct ProgramErr {
@@ -112,4 +116,3 @@ impl Serialize for ProgramErr {
         state.end()
     }
 }
-
