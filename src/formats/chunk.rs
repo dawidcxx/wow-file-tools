@@ -56,6 +56,8 @@ pub trait ChunkVecUtils {
     fn get_mmdx(&self) -> ChunkMmdx;
     fn get_mmid(&self) -> ChunkMmid;
     fn get_mwmo(&self) -> ChunkMwmo;
+    fn get_mwid(&self) -> ChunkMwid;
+    fn get_mddf(&self) -> ChunkMddf;
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
@@ -84,6 +86,10 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_mmid(&self) -> ChunkMmid { ChunkMmid::from_chunk(self.get_chunk_of_type("MMID")) }
 
     fn get_mwmo(&self) -> ChunkMwmo { ChunkMwmo::from_chunk(self.get_chunk_of_type("MWMO")) }
+
+    fn get_mwid(&self) -> ChunkMwid { ChunkMwid::from_chunk(self.get_chunk_of_type("MWID")) }
+
+    fn get_mddf(&self) -> ChunkMddf { ChunkMddf::from_chunk(self.get_chunk_of_type("MDDF")) }
 }
 
 
@@ -219,5 +225,65 @@ impl ChunkMwmo {
     pub fn from_chunk(c: &Chunk) -> ChunkMwmo {
         assert_eq!(c.get_id_as_string(), "MWMO");
         ChunkMwmo(c.data.get_null_terminated_strings().unwrap())
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMwid(Vec<u32>);
+
+impl ChunkMwid {
+    pub fn from_chunk(c: &Chunk) -> ChunkMwid {
+        assert_eq!(c.get_id_as_string(), "MWID");
+        assert_eq!(c.size % 4, 0);
+        let offsets = c.data.chunks(4)
+            .map(|it| it.to_vec().get_u32(0).unwrap())
+            .collect();
+        ChunkMwid(offsets)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMddfItem {
+    pub mmid_entry: u32,
+    pub unique_id: u32,
+    pub position: [f32; 3],
+    pub rotation: [f32; 3],
+    pub scale: u16,
+    pub flags: u16,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMddf(Vec<ChunkMddfItem>);
+
+impl ChunkMddf {
+    pub fn from_chunk(c: &Chunk) -> ChunkMddf {
+        assert_eq!(c.get_id_as_string(), "MDDF");
+        assert_eq!(c.size % 36, 0);
+
+        let items: Vec<ChunkMddfItem> = c.data.chunks(36).map(|data| {
+            let data = data.to_vec();
+            let mmid_entry = data.get_u32(0).unwrap();
+            let unique_id = data.get_u32(4).unwrap();
+            let pos_x = data.get_f32(8).unwrap();
+            let pos_y = data.get_f32(12).unwrap();
+            let pos_z = data.get_f32(16).unwrap();
+            let position = [pos_x, pos_y, pos_z];
+            let rot_x = data.get_f32(20).unwrap();
+            let rot_y = data.get_f32(24).unwrap();
+            let rot_z = data.get_f32(28).unwrap();
+            let rotation = [rot_x, rot_y, rot_z];
+            let scale = data.get_u16(32).unwrap();
+            let flags = data.get_u16(34).unwrap();
+            ChunkMddfItem {
+                mmid_entry,
+                unique_id,
+                position,
+                rotation,
+                scale,
+                flags,
+            }
+        }).collect();
+
+        ChunkMddf(items)
     }
 }
