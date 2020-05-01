@@ -12,13 +12,13 @@ use serde::{Serialize, Serializer};
 use std::error::Error;
 use serde::ser::SerializeStruct;
 use crate::formats::adt::AdtFile;
-
+use crate::formats::wmo::WmoFile;
 
 fn main() {
     let root_cmd = RootCmd::parse();
     let cmd_result = handle_cmd(root_cmd)
         .map_err(|error| ProgramErr { error });
-    
+
     std::process::exit(match cmd_result {
         Err(e) => {
             let json = serde_json::to_string_pretty(&e).unwrap();
@@ -48,32 +48,46 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
                 }
             };
 
-            let view_result = get_view_result(file_path_str, extension)?;
+            let view_result = get_view_result(&v, file_path_str, extension)?;
 
-            let output_str = if v.compact {
-                serde_json::to_string(&view_result)?
-            } else {
-                serde_json::to_string_pretty(&view_result)?
-            };
 
-            println!("{}", output_str);
+            println!("{}", view_result);
 
             Ok(())
         }
     };
 }
 
-fn get_view_result(file_path_str: &str, extension: &str) -> R<impl Serialize> {
-    let res: impl Serialize = match extension {
+fn get_view_result(
+    view_cmd: &ViewCmd,
+    file_path_str: &str,
+    extension: &str,
+) -> R<String> {
+    let result = match extension {
+        "wmo" => {
+            let f = WmoFile::from_path(file_path_str)?;
+            serialize_result(view_cmd, f)?
+        }
         "adt" => {
-            AdtFile::from_path(file_path_str)?
+            let f = AdtFile::from_path(file_path_str)?;
+            serialize_result(view_cmd, f)?
         }
         _ => {
             let err_msg = format!("Unsupported file extension: ({})", extension);
             return Err(err_msg.into());
         }
     };
-    Ok(res)
+
+    Ok(result)
+}
+
+fn serialize_result(view_cmd: &ViewCmd, result: impl Serialize) -> R<String> {
+    let output_str = if view_cmd.compact {
+        serde_json::to_string(&result)?
+    } else {
+        serde_json::to_string_pretty(&result)?
+    };
+    Ok(output_str)
 }
 
 #[derive(Clap)]

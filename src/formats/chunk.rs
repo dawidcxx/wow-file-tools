@@ -58,6 +58,7 @@ pub trait ChunkVecUtils {
     fn get_mwmo(&self) -> ChunkMwmo;
     fn get_mwid(&self) -> ChunkMwid;
     fn get_mddf(&self) -> ChunkMddf;
+    fn get_motx(&self) -> ChunkMotx;
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
@@ -90,6 +91,8 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_mwid(&self) -> ChunkMwid { ChunkMwid::from_chunk(self.get_chunk_of_type("MWID")) }
 
     fn get_mddf(&self) -> ChunkMddf { ChunkMddf::from_chunk(self.get_chunk_of_type("MDDF")) }
+
+    fn get_motx(&self) -> ChunkMotx { ChunkMotx::from_chunk(self.get_chunk_of_type("MOTX")) }
 }
 
 
@@ -186,7 +189,7 @@ impl ChunkMcin {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ChunkMtex(Vec<String>);
+pub struct ChunkMtex(pub Vec<String>);
 
 impl ChunkMtex {
     pub fn from_chunk(c: &Chunk) -> ChunkMtex {
@@ -196,7 +199,7 @@ impl ChunkMtex {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ChunkMmdx(Vec<String>);
+pub struct ChunkMmdx(pub Vec<String>);
 
 impl ChunkMmdx {
     pub fn from_chunk(c: &Chunk) -> ChunkMmdx {
@@ -206,7 +209,7 @@ impl ChunkMmdx {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ChunkMmid(Vec<u32>);
+pub struct ChunkMmid(pub Vec<u32>);
 
 impl ChunkMmid {
     pub fn from_chunk(c: &Chunk) -> ChunkMmid {
@@ -219,7 +222,7 @@ impl ChunkMmid {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ChunkMwmo(Vec<String>);
+pub struct ChunkMwmo(pub Vec<String>);
 
 impl ChunkMwmo {
     pub fn from_chunk(c: &Chunk) -> ChunkMwmo {
@@ -229,7 +232,7 @@ impl ChunkMwmo {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ChunkMwid(Vec<u32>);
+pub struct ChunkMwid(pub Vec<u32>);
 
 impl ChunkMwid {
     pub fn from_chunk(c: &Chunk) -> ChunkMwid {
@@ -253,7 +256,7 @@ pub struct ChunkMddfItem {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ChunkMddf(Vec<ChunkMddfItem>);
+pub struct ChunkMddf(pub Vec<ChunkMddfItem>);
 
 impl ChunkMddf {
     pub fn from_chunk(c: &Chunk) -> ChunkMddf {
@@ -285,5 +288,22 @@ impl ChunkMddf {
         }).collect();
 
         ChunkMddf(items)
+    }
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMotx(pub Vec<String>);
+
+impl ChunkMotx {
+    pub fn from_chunk(c: &Chunk) -> ChunkMotx {
+        assert_eq!(c.get_id_as_string(), "MOTX");
+        let strings = c.data.get_null_terminated_strings()
+            .unwrap()
+            .into_iter()
+            .filter(|it| !it.is_empty())
+            .collect();
+
+        ChunkMotx(strings)
     }
 }
