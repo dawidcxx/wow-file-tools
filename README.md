@@ -5,6 +5,9 @@
 
 This tool allows you to output wow file contents into your terminal. 
 
+
+> `./wow-file-tools --help`
+
 ```
 wow-file-tools 1.0
 ArenaCraft
@@ -19,6 +22,24 @@ FLAGS:
 SUBCOMMANDS:
     help    Prints this message or the help of the given subcommand(s)
     view    
+```
+
+> `./wow-file-tools view --help`
+
+```
+wow-file-tools-view 
+
+USAGE:
+    wow-file-tools view [FLAGS] --file <file>
+
+FLAGS:
+    -c, --compact    Output JSON will no longer be pretty printed
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -f, --file <file>    
+
 ```
 
 example command:
