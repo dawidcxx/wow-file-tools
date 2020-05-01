@@ -1,4 +1,7 @@
 ⚠WIP⚠️️
+⚠️️Reqiures rust nightly⚠️️
+
+# About
 
 This tool allows you to output wow file contents into your terminal. 
 
@@ -22,3 +25,11 @@ example command:
 
 `./wow-file-tools view --compact -f ./mpq/TolVirArena_29_51.adt`
 
+
+# Compiling
+
+This is a [rust](https://www.rust-lang.org/) project. Should successfully compile with `rustc 1.43.0-nightly (75cf41afb 2020-03-04)`. To compile, run: 
+
+`cargo build --release` 
+
+The binary will be in `$PROJECT/target/release`. 
