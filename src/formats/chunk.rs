@@ -59,6 +59,7 @@ pub trait ChunkVecUtils {
     fn get_mwid(&self) -> ChunkMwid;
     fn get_mddf(&self) -> ChunkMddf;
     fn get_motx(&self) -> ChunkMotx;
+    fn get_mogn(&self) -> ChunkMogn;
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
@@ -93,6 +94,8 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_mddf(&self) -> ChunkMddf { ChunkMddf::from_chunk(self.get_chunk_of_type("MDDF")) }
 
     fn get_motx(&self) -> ChunkMotx { ChunkMotx::from_chunk(self.get_chunk_of_type("MOTX")) }
+
+    fn get_mogn(&self) -> ChunkMogn { ChunkMogn::from_chunk(self.get_chunk_of_type("MOGN")) }
 }
 
 
@@ -305,5 +308,20 @@ impl ChunkMotx {
             .collect();
 
         ChunkMotx(strings)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMogn(pub Vec<String>);
+
+impl ChunkMogn {
+    pub fn from_chunk(c: &Chunk) -> ChunkMogn {
+        assert_eq!(c.get_id_as_string(), "MOGN");
+        let strings = c.data.get_null_terminated_strings()
+            .unwrap()
+            .into_iter()
+            .filter(|it| !it.is_empty())
+            .collect();
+        ChunkMogn(strings)
     }
 }
