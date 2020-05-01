@@ -25,6 +25,7 @@ example command:
 
 `./wow-file-tools view --compact -f ./mpq/TolVirArena_29_51.adt`
 
+If you want to try out, check out the [releases](https://github.com/arenacraftwow/wow-file-tools/releases) tab and grab the latest one.
 
 # Compiling
 
