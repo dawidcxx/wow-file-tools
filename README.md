@@ -1,5 +1,5 @@
-⚠WIP⚠️️
-⚠️️Reqiures rust nightly⚠️️
+- ⚠ WIP
+- ⚠️️ Reqiures rust nightly
 
 # About
 
