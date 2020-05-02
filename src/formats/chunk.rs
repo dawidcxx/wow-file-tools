@@ -27,10 +27,11 @@ impl Chunk {
 
         loop {
             let id: [u8; 4] = buffered_file[offset..offset + 4].try_into()?;
-            let size = buffered_file[offset + 4..offset + 8].to_vec().get_u32(0)? as usize;
+            let size = Chunk::get_chunk_size(&id, &buffered_file, offset)?;
             let data = buffered_file[offset + 8..offset + 8 + size].to_vec();
 
             offset += 8 + size;
+
             builder.push(Chunk {
                 id,
                 size: size as u32,
@@ -43,6 +44,41 @@ impl Chunk {
         }
 
         Ok(builder)
+    }
+
+    fn get_chunk_size(chunk_id: &[u8; 4], buffered_file: &Vec<u8>, offset: usize) -> R<usize> {
+        // The MOGP chunk breaks our parsing system
+        // by having an unexpected size provided in the header..
+        // This function adds special casing for a chunk of this type.
+        // If any other chunk happens to have a similar issue, just add
+        // the correct [ChunkFix] entry into the `const` array [#CHUNK_SIZE_FIXES]
+        struct ChunkFix {
+            chunk_id: [u8; 4],
+            chunk_size_correction: usize,
+        }
+
+        const CHUNK_SIZE_FIXES: &[ChunkFix] = &[
+            ChunkFix {
+                chunk_id: [80, 71, 79, 77], // MOGP
+                chunk_size_correction: 68,
+            },
+        ];
+
+        let requires_fix = CHUNK_SIZE_FIXES
+            .iter()
+            .find(|&it| it.chunk_id.ends_with(chunk_id));
+
+        match requires_fix {
+            Some(fix) => {
+                // use correction
+                Ok(fix.chunk_size_correction)
+            }
+            None => {
+                // usual size extraction, 99% of the chunks.
+                let size = buffered_file[offset + 4..offset + 8].to_vec().get_u32(0)? as usize;
+                Ok(size)
+            }
+        }
     }
 }
 
@@ -60,6 +96,7 @@ pub trait ChunkVecUtils {
     fn get_mddf(&self) -> ChunkMddf;
     fn get_motx(&self) -> ChunkMotx;
     fn get_mogn(&self) -> ChunkMogn;
+    fn get_modn(&self) -> ChunkModn;
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
@@ -96,6 +133,8 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_motx(&self) -> ChunkMotx { ChunkMotx::from_chunk(self.get_chunk_of_type("MOTX")) }
 
     fn get_mogn(&self) -> ChunkMogn { ChunkMogn::from_chunk(self.get_chunk_of_type("MOGN")) }
+
+    fn get_modn(&self) -> ChunkModn { ChunkModn::from_chunk(self.get_chunk_of_type("MODN")) }
 }
 
 
@@ -323,5 +362,20 @@ impl ChunkMogn {
             .filter(|it| !it.is_empty())
             .collect();
         ChunkMogn(strings)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkModn(pub Vec<String>);
+
+impl ChunkModn {
+    pub fn from_chunk(c: &Chunk) -> ChunkModn {
+        assert_eq!(c.get_id_as_string(), "MODN");
+        let strings = c.data.get_null_terminated_strings()
+            .unwrap()
+            .into_iter()
+            .filter(|it| !it.is_empty())
+            .collect();
+        ChunkModn(strings)
     }
 }

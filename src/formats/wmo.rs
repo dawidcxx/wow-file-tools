@@ -1,11 +1,11 @@
 use crate::common::R;
-use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMogn};
+use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMogn, ChunkModn};
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 
 const ROOT_FILE_CHUNKS: &[&str] = &["MOMT", "MOGI", "MOSB", "MOVV", "MODN"];
-const GROUP_FILE_CHUNKS: &[&str] = &["MOGP", "MOPY", "MOVI", "MONR", "MOLD"];
+const GROUP_FILE_CHUNKS: &[&str] = &["MOGP", "MOPY", "MOVI", "MONR", "MOTV"];
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum WmoFile {
@@ -29,13 +29,34 @@ pub struct WmoRootFile {
     pub movb: (),
     pub molt: (),
     pub mods: (),
-    pub modn: (),
+    pub modn: ChunkModn,
     pub modd: (),
     pub mfog: (),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct WmoGroupFile {}
+pub struct WmoGroupFile {
+    pub mver: ChunkMver,
+    pub mogp: (),
+    pub mopy: (),
+    pub movi: (),
+    pub movt: (),
+    pub monr: (),
+    pub motv: (),
+    pub moba: (),
+    pub molr: Option<()>,
+    pub modr: Option<()>,
+    pub mobn: Option<()>,
+    pub mobr: Option<()>,
+    pub mpbv: Option<()>,
+    pub mpbp: Option<()>,
+    pub mpbi: Option<()>,
+    pub mpbg: Option<()>,
+    pub mocv: Option<()>,
+    pub mliq: Option<()>,
+    pub mori: Option<()>,
+    pub morb: Option<()>,
+}
 
 impl WmoFile {
     pub fn from_path(path: &str) -> R<WmoFile> {
@@ -47,7 +68,9 @@ impl WmoFile {
         fn matches_file_type(marker_chunks: &[&str], lookup: &HashSet<String>) -> bool {
             marker_chunks
                 .iter()
-                .all(|c| lookup.contains(*c))
+                .all(|c| {
+                    lookup.contains(*c)
+                })
         }
 
         let chunk_names_lookup: HashSet<String> = chunks.iter()
@@ -69,6 +92,7 @@ impl WmoRootFile {
         let mver = chunks.get_mver_chunk();
         let motx = chunks.get_motx();
         let mogn = chunks.get_mogn();
+        let modn = chunks.get_modn();
 
         WmoRootFile {
             mver,
@@ -85,7 +109,7 @@ impl WmoRootFile {
             movb: (),
             molt: (),
             mods: (),
-            modn: (),
+            modn,
             modd: (),
             mfog: (),
         }
@@ -94,6 +118,28 @@ impl WmoRootFile {
 
 impl WmoGroupFile {
     fn new(chunks: Vec<Chunk>) -> WmoGroupFile {
-        todo!()
+        let mver = chunks.get_mver_chunk();
+        WmoGroupFile {
+            mver,
+            mogp: (),
+            mopy: (),
+            movi: (),
+            movt: (),
+            monr: (),
+            motv: (),
+            moba: (),
+            molr: None,
+            modr: None,
+            mobn: None,
+            mobr: None,
+            mpbv: None,
+            mpbp: None,
+            mpbi: None,
+            mpbg: None,
+            mocv: None,
+            mliq: None,
+            mori: None,
+            morb: None,
+        }
     }
 }
