@@ -135,9 +135,13 @@ impl WmoFileVariant {
 impl WmoRootFile {
     pub fn get_group_names(n_groups: u32, original_file_name: &str) -> Vec<String> {
         let file_name = original_file_name
+            .split("/")
+            .last()
+            .unwrap()
             .split(".wmo")
             .nth(0)
             .unwrap();
+
         (0..n_groups)
             .map(|index: u32| {
                 format!("{}_{:0>3}.wmo", file_name, index)
@@ -219,4 +223,15 @@ fn wmo_root_get_group_names() {
         "test00_003.wmo",
         "test00_004.wmo",
     ]);
+
+    let group_names = WmoRootFile::get_group_names(5, "WMO/woRlD//whatever//test00.wmo");
+    assert_eq!(group_names, vec![
+        "test00_000.wmo",
+        "test00_001.wmo",
+        "test00_002.wmo",
+        "test00_003.wmo",
+        "test00_004.wmo",
+    ]);
+
+
 }
