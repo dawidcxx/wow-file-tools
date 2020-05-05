@@ -12,7 +12,7 @@ use serde::{Serialize, Serializer};
 use std::error::Error;
 use serde::ser::SerializeStruct;
 use crate::formats::adt::AdtFile;
-use crate::formats::wmo::WmoFile;
+use crate::formats::wmo::{WmoFileVariant, WmoFile};
 
 fn main() {
     let root_cmd = RootCmd::parse();
