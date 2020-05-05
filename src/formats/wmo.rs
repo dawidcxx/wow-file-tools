@@ -1,5 +1,5 @@
 use crate::common::R;
-use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMogn, ChunkModn};
+use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMogn, ChunkModn, ChunkMohd};
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
 use std::iter::FromIterator;
@@ -17,7 +17,7 @@ pub enum WmoFile {
 pub struct WmoRootFile {
     pub mver: ChunkMver,
     pub motx: ChunkMotx,
-    pub mohd: (),
+    pub mohd: ChunkMohd,
     pub momt: (),
     pub mogn: ChunkMogn,
     pub mogi: (),
@@ -91,13 +91,14 @@ impl WmoRootFile {
     fn new(chunks: Vec<Chunk>) -> WmoRootFile {
         let mver = chunks.get_mver_chunk();
         let motx = chunks.get_motx();
+        let mohd = chunks.get_mohd();
         let mogn = chunks.get_mogn();
         let modn = chunks.get_modn();
 
         WmoRootFile {
             mver,
             motx,
-            mohd: (),
+            mohd,
             momt: (),
             mogn,
             mogi: (),

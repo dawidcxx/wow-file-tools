@@ -97,6 +97,7 @@ pub trait ChunkVecUtils {
     fn get_motx(&self) -> ChunkMotx;
     fn get_mogn(&self) -> ChunkMogn;
     fn get_modn(&self) -> ChunkModn;
+    fn get_mohd(&self) -> ChunkMohd;
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
@@ -135,8 +136,10 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_mogn(&self) -> ChunkMogn { ChunkMogn::from_chunk(self.get_chunk_of_type("MOGN")) }
 
     fn get_modn(&self) -> ChunkModn { ChunkModn::from_chunk(self.get_chunk_of_type("MODN")) }
-}
 
+    fn get_mohd(&self) -> ChunkMohd { ChunkMohd::from_chunk(self.get_chunk_of_type("MOHD")) }
+
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChunkMver {
@@ -377,5 +380,49 @@ impl ChunkModn {
             .filter(|it| !it.is_empty())
             .collect();
         ChunkModn(strings)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMohd {
+    pub n_materials: u32,
+    pub n_groups: u32,
+    pub n_ports: u32,
+    pub n_lights: u32,
+    pub n_models: u32,
+    pub n_doodads: u32,
+    pub n_doodad_sets: u32,
+    pub ambient_color: u32,
+    pub wmo_id: u32,
+    pub bounding_box_corner_1: [f32; 3],
+    pub bounding_box_corner_2: [f32; 3],
+}
+
+impl ChunkMohd {
+    pub fn from_chunk(c: &Chunk) -> ChunkMohd {
+        assert_eq!(c.get_id_as_string(), "MOHD");
+        ChunkMohd {
+            n_materials: c.data.get_u32(0).unwrap(),
+            n_groups: c.data.get_u32(4).unwrap(),
+            n_ports: c.data.get_u32(8).unwrap(),
+            n_lights: c.data.get_u32(12).unwrap(),
+            n_models: c.data.get_u32(16).unwrap(),
+            n_doodads: c.data.get_u32(20).unwrap(),
+            n_doodad_sets: c.data.get_u32(24).unwrap(),
+            ambient_color: c.data.get_u32(28).unwrap(),
+            wmo_id: c.data.get_u32(32).unwrap(),
+            bounding_box_corner_1: {
+                let b1 = c.data.get_f32(36).unwrap();
+                let b2 = c.data.get_f32(40).unwrap();
+                let b3 = c.data.get_f32(44).unwrap();
+                [b1, b2, b3]
+            },
+            bounding_box_corner_2: {
+                let b1 = c.data.get_f32(48).unwrap();
+                let b2 = c.data.get_f32(52).unwrap();
+                let b3 = c.data.get_f32(56).unwrap();
+                [b1, b2, b3]
+            },
+        }
     }
 }
