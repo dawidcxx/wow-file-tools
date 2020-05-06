@@ -62,6 +62,10 @@ impl Chunk {
                 chunk_id: [80, 71, 79, 77], // MOGP
                 chunk_size_correction: 68,
             },
+            ChunkFix {
+                chunk_id: [1, 0, 0, 0], // no clue
+                chunk_size_correction: 40,
+            }
         ];
 
         let requires_fix = CHUNK_SIZE_FIXES
@@ -74,6 +78,7 @@ impl Chunk {
                 Ok(fix.chunk_size_correction)
             }
             None => {
+
                 // usual size extraction, 99% of the chunks.
                 let size = buffered_file[offset + 4..offset + 8].to_vec().get_u32(0)? as usize;
                 Ok(size)
@@ -138,7 +143,6 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_modn(&self) -> ChunkModn { ChunkModn::from_chunk(self.get_chunk_of_type("MODN")) }
 
     fn get_mohd(&self) -> ChunkMohd { ChunkMohd::from_chunk(self.get_chunk_of_type("MOHD")) }
-
 }
 
 #[derive(Debug, Serialize, Deserialize)]
