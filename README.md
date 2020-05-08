@@ -1,5 +1,4 @@
 - ⚠ WIP
-- ⚠️️ Reqiures rust nightly
 
 # About
 
@@ -47,6 +46,21 @@ example command:
 `./wow-file-tools view --compact -f ./mpq/TolVirArena_29_51.adt`
 
 If you want to try out, check out the [releases](https://github.com/arenacraftwow/wow-file-tools/releases) tab and grab the latest one.
+
+# Features
+
+- ### View Command
+
+The view command will dump the conversion of the binary file into JSON. Supported formats: 
+
+ * DBC
+    - [x] Map.dbc
+* [x] ADT
+* [x] WDT
+* [x] WMO
+
+*Note:* some formats might be lacking fields
+
 
 # Compiling
 
