@@ -1,3 +1,6 @@
+pub mod map;
+pub mod dbc;
+
 use std::clone::Clone;
 use std::fs::File;
 use std::io::Read;
@@ -7,20 +10,20 @@ use std::rc::Rc;
 use crate::byte_utils::*;
 use crate::common::R;
 
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbcHeader {
     // 4
-    magic: [u8; 4],
+    pub magic: [u8; 4],
     // 4
-    record_count: u32,
+    pub record_count: u32,
     // 4
-    field_count: u32,
+    pub field_count: u32,
     // 4
-    record_size: u32,
+    pub record_size: u32,
     // 4
-    string_block_size: u32,
+    pub string_block_size: u32,
 }
+
 
 #[derive(Debug, Clone)]
 pub struct DbcFile {
@@ -56,6 +59,10 @@ impl DbcFileIteratorRow {
 
     pub fn get_number_column(&self, column: usize) -> R<u32> {
         self.file_bytes.get_u32(self.get_col_offset(column))
+    }
+
+    pub fn get_float_column(&self, column: usize) -> R<f32> {
+        self.file_bytes.get_f32(self.get_col_offset(column))
     }
 
     pub fn get_bool_column(&self, column: usize) -> R<bool> {
@@ -155,21 +162,6 @@ fn get_dbc_header(dbc_content: &Vec<u8>) -> R<DbcHeader> {
 }
 
 impl DbcFile {
-    pub fn get_map_dbc_rows() -> R<Vec<MapDbcRow>> {
-        let mut builder = Vec::with_capacity(10);
-        let file = DbcFile::new("dbc/Map.dbc")?;
-        for row in &file {
-            let row = MapDbcRow {
-                id: row.get_number_column(1)?,
-                name: row.get_string_column(2)?,
-                area_table_ref: row.get_number_column(23)?,
-                loading_screen_ref: row.get_number_column(58)?,
-            };
-            builder.push(row);
-        }
-        Ok(builder)
-    }
-
     pub fn get_battle_master_list_entries() -> R<Vec<BattleMasterListDbcRow>> {
         let mut builder = Vec::with_capacity(10);
         let file = DbcFile::new("dbc/BattlemasterList.dbc")?;
@@ -205,13 +197,6 @@ impl DbcFile {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MapDbcRow {
-    pub id: u32,
-    pub name: String,
-    pub area_table_ref: u32,
-    pub loading_screen_ref: u32,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BattleMasterListDbcRow {
@@ -230,9 +215,9 @@ impl BattleMasterListDbcRow {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AreaTableDbcRow {
-    pub  id: u32,
-    pub  map_ref: u32,
-    pub  sub_area_ref: u32,
+    pub id: u32,
+    pub map_ref: u32,
+    pub sub_area_ref: u32,
     pub area_name: String,
 }
 

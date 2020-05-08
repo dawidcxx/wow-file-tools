@@ -1,5 +1,4 @@
 #![feature(backtrace)]
-#![feature(impl_trait_in_bindings)]
 
 pub mod byte_utils;
 pub mod formats;
@@ -12,7 +11,8 @@ use serde::{Serialize, Serializer};
 use std::error::Error;
 use serde::ser::SerializeStruct;
 use crate::formats::adt::AdtFile;
-use crate::formats::wmo::{WmoFileVariant, WmoFile};
+use crate::formats::wmo::{WmoFile};
+use crate::formats::dbc::dbc::{load_map_dbc_from_path};
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -50,7 +50,6 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
 
             let view_result = get_view_result(&v, file_path_str, extension)?;
 
-
             println!("{}", view_result);
 
             Ok(())
@@ -64,14 +63,18 @@ fn get_view_result(
     extension: &str,
 ) -> R<String> {
     let result = match extension {
-        "wmo" => {
-            let f = WmoFile::from_path(file_path_str)?;
-            serialize_result(view_cmd, f)?
+        "dbc" => {
+            let file_name = extract_file_name(file_path_str);
+            match file_name {
+                "Map.dbc" => serialize_result(view_cmd, load_map_dbc_from_path(file_path_str))?,
+                _ => {
+                    let err_msg = format!("Unsupported DBC file: ({})", file_name);
+                    return Err(err_msg.into());
+                }
+            }
         }
-        "adt" => {
-            let f = AdtFile::from_path(file_path_str)?;
-            serialize_result(view_cmd, f)?
-        }
+        "wmo" => serialize_result(view_cmd, WmoFile::from_path(file_path_str))?,
+        "adt" => serialize_result(view_cmd, AdtFile::from_path(file_path_str))?,
         _ => {
             let err_msg = format!("Unsupported file extension: ({})", extension);
             return Err(err_msg.into());
@@ -81,11 +84,19 @@ fn get_view_result(
     Ok(result)
 }
 
-fn serialize_result(view_cmd: &ViewCmd, result: impl Serialize) -> R<String> {
+fn extract_file_name(file_path_str: &str) -> &str {
+    Path::new(file_path_str)
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+}
+
+fn serialize_result(view_cmd: &ViewCmd, result: R<impl Serialize>) -> R<String> {
     let output_str = if view_cmd.compact {
-        serde_json::to_string(&result)?
+        serde_json::to_string(&result?)?
     } else {
-        serde_json::to_string_pretty(&result)?
+        serde_json::to_string_pretty(&result?)?
     };
     Ok(output_str)
 }
