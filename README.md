@@ -57,6 +57,7 @@ The `view` command will dump the conversion of the binary file into JSON. Suppor
     - [x] LightSkybox.dbc
     - [x] BattlemasterList.dbc
     - [x] GroundEffectTexture.dbc
+    - [x] GroundEffectDoodad.dbc
 * [x] ADT
 * [x] WDT
 * [x] WMO

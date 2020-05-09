@@ -7,6 +7,7 @@ use crate::formats::dbc::area_table::AreaTableDbcRow;
 use crate::formats::dbc::light_sky_box::LightSkyBoxDbcRow;
 use crate::formats::dbc::battle_master_list::BattleMasterListDbcRow;
 use crate::formats::dbc::ground_effect_texture::GroundEffectTextureDbcRow;
+use crate::formats::dbc::ground_effect_doodad::GroundEffectDoodadDbcRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -51,3 +52,6 @@ pub fn load_ground_effect_texture_from_path(path: &str) -> R<Dbc<GroundEffectTex
     load_dbc(path, Box::new(GroundEffectTextureDbcRow::process))
 }
 
+pub fn load_ground_effect_doodad_from_path(path: &str) -> R<Dbc<GroundEffectDoodadDbcRow>> {
+    load_dbc(path, Box::new(GroundEffectDoodadDbcRow::process))
+}

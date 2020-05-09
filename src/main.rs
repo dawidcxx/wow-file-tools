@@ -68,6 +68,7 @@ fn get_view_result(
         "dbc" => {
             let file_name = extract_file_name(file_path_str);
             match file_name {
+                "GroundEffectDoodad.dbc" => serialize_result(view_cmd, load_ground_effect_doodad_from_path(file_path_str))?,
                 "GroundEffectTexture.dbc" => serialize_result(view_cmd, load_ground_effect_texture_from_path(file_path_str))?,
                 "BattlemasterList.dbc" => serialize_result(view_cmd, load_battle_master_list_from_path(file_path_str))?,
                 "LightSkybox.dbc" => serialize_result(view_cmd, load_light_sky_box_from_path(file_path_str))?,
