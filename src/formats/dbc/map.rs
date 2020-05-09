@@ -25,7 +25,7 @@ pub struct MapDbcRow {
 }
 
 impl MapDbcRow {
-    pub fn process(dbc_file: &DbcFile, row_builder: &mut Vec<MapDbcRow>) -> R<()> {
+    pub fn process(row_builder: &mut Vec<MapDbcRow>, dbc_file: &DbcFile) -> R<()> {
         for row in *&dbc_file {
             let id = row.get_number_column(1)?;
             let internal_name = row.get_string_column(2)?;

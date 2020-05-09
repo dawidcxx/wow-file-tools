@@ -1,4 +1,5 @@
 #![feature(backtrace)]
+#![feature(fn_traits)]
 
 pub mod byte_utils;
 pub mod formats;
@@ -12,7 +13,7 @@ use std::error::Error;
 use serde::ser::SerializeStruct;
 use crate::formats::adt::AdtFile;
 use crate::formats::wmo::{WmoFile};
-use crate::formats::dbc::dbc::{load_map_dbc_from_path};
+use crate::formats::dbc::dbc::{load_map_dbc_from_path, load_loading_screens_dbc_from_path};
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -67,6 +68,7 @@ fn get_view_result(
             let file_name = extract_file_name(file_path_str);
             match file_name {
                 "Map.dbc" => serialize_result(view_cmd, load_map_dbc_from_path(file_path_str))?,
+                "LoadingScreens.dbc" => serialize_result(view_cmd, load_loading_screens_dbc_from_path(file_path_str))?,
                 _ => {
                     let err_msg = format!("Unsupported DBC file: ({})", file_name);
                     return Err(err_msg.into());

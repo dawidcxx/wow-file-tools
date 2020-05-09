@@ -1,5 +1,6 @@
 pub mod map;
 pub mod dbc;
+pub mod loading_screens;
 
 use std::clone::Clone;
 use std::fs::File;

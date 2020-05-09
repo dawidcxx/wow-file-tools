@@ -55,6 +55,7 @@ The view command will dump the conversion of the binary file into JSON. Supporte
 
  * DBC
     - [x] Map.dbc
+    - [x] LoadingScreens.dbc
 * [x] ADT
 * [x] WDT
 * [x] WMO
