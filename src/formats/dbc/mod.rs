@@ -2,6 +2,7 @@ pub mod map;
 pub mod dbc;
 pub mod loading_screens;
 pub mod area_table;
+pub mod light_sky_box;
 
 use std::clone::Clone;
 use std::fs::File;

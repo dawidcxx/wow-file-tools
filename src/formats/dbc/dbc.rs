@@ -4,6 +4,7 @@ use crate::formats::dbc::map::MapDbcRow;
 use crate::common::R;
 use crate::formats::dbc::loading_screens::LoadingScreenDbcRow;
 use crate::formats::dbc::area_table::AreaTableDbcRow;
+use crate::formats::dbc::light_sky_box::LightSkyBoxDbcRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -35,4 +36,8 @@ pub fn load_loading_screens_dbc_from_path(path: &str) -> R<Dbc<LoadingScreenDbcR
 
 pub fn load_area_table_from_path(path: &str) -> R<Dbc<AreaTableDbcRow>> {
     load_dbc(path, Box::new(AreaTableDbcRow::process))
+}
+
+pub fn load_light_sky_box_from_path(path: &str) -> R<Dbc<LightSkyBoxDbcRow>> {
+    load_dbc(path, Box::new(LightSkyBoxDbcRow::process))
 }
