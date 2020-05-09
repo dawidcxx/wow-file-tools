@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use crate::formats::dbc::{DbcFile};
 use crate::common::R;
 
-
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BattleMasterListDbcRow {
     id: u32,

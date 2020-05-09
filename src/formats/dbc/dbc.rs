@@ -6,6 +6,7 @@ use crate::formats::dbc::loading_screens::LoadingScreenDbcRow;
 use crate::formats::dbc::area_table::AreaTableDbcRow;
 use crate::formats::dbc::light_sky_box::LightSkyBoxDbcRow;
 use crate::formats::dbc::battle_master_list::BattleMasterListDbcRow;
+use crate::formats::dbc::ground_effect_texture::GroundEffectTextureDbcRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -44,5 +45,9 @@ pub fn load_light_sky_box_from_path(path: &str) -> R<Dbc<LightSkyBoxDbcRow>> {
 
 pub fn load_battle_master_list_from_path(path: &str) -> R<Dbc<BattleMasterListDbcRow>> {
     load_dbc(path, Box::new(BattleMasterListDbcRow::process))
+}
+
+pub fn load_ground_effect_texture_from_path(path: &str) -> R<Dbc<GroundEffectTextureDbcRow>> {
+    load_dbc(path, Box::new(GroundEffectTextureDbcRow::process))
 }
 

@@ -4,6 +4,7 @@ pub mod loading_screens;
 pub mod area_table;
 pub mod light_sky_box;
 pub mod battle_master_list;
+pub mod ground_effect_texture;
 
 use std::clone::Clone;
 use std::fs::File;
