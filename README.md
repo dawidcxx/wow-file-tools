@@ -51,7 +51,7 @@ If you want to try out, check out the [releases](https://github.com/arenacraftwo
 
 - ### View Command
 
-The view command will dump the conversion of the binary file into JSON. Supported formats: 
+The `view` command will dump the conversion of the binary file into JSON. Supported formats: 
 
 * DBC
     - [x] Map.dbc
