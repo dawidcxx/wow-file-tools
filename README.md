@@ -53,7 +53,7 @@ If you want to try out, check out the [releases](https://github.com/arenacraftwo
 
 The view command will dump the conversion of the binary file into JSON. Supported formats: 
 
- * DBC
+* DBC
     - [x] Map.dbc
     - [x] LoadingScreens.dbc
 * [x] ADT
