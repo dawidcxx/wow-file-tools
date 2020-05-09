@@ -3,6 +3,7 @@ use serde::{Serialize, Deserialize};
 use crate::formats::dbc::map::MapDbcRow;
 use crate::common::R;
 use crate::formats::dbc::loading_screens::LoadingScreenDbcRow;
+use crate::formats::dbc::area_table::AreaTableDbcRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -30,4 +31,8 @@ pub fn load_map_dbc_from_path(path: &str) -> R<Dbc<MapDbcRow>> {
 
 pub fn load_loading_screens_dbc_from_path(path: &str) -> R<Dbc<LoadingScreenDbcRow>> {
     load_dbc(path, Box::new(LoadingScreenDbcRow::process))
+}
+
+pub fn load_area_table_from_path(path: &str) -> R<Dbc<AreaTableDbcRow>> {
+    load_dbc(path, Box::new(AreaTableDbcRow::process))
 }

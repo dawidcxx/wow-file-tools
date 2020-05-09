@@ -1,6 +1,7 @@
 pub mod map;
 pub mod dbc;
 pub mod loading_screens;
+pub mod area_table;
 
 use std::clone::Clone;
 use std::fs::File;

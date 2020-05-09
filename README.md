@@ -56,6 +56,7 @@ The `view` command will dump the conversion of the binary file into JSON. Suppor
 * DBC
     - [x] Map.dbc
     - [x] LoadingScreens.dbc
+    - [x] AreaTable.dbc
 * [x] ADT
 * [x] WDT
 * [x] WMO
