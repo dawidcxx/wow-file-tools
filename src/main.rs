@@ -14,6 +14,7 @@ use serde::ser::SerializeStruct;
 use crate::formats::adt::AdtFile;
 use crate::formats::wmo::{WmoFile};
 use crate::formats::dbc::dbc::{load_map_dbc_from_path, load_loading_screens_dbc_from_path};
+use crate::formats::wdt::WdtFile;
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -75,6 +76,7 @@ fn get_view_result(
                 }
             }
         }
+        "wdt" => serialize_result(view_cmd, WdtFile::from_path(file_path_str))?,
         "wmo" => serialize_result(view_cmd, WmoFile::from_path(file_path_str))?,
         "adt" => serialize_result(view_cmd, AdtFile::from_path(file_path_str))?,
         _ => {

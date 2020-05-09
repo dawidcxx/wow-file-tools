@@ -88,9 +88,12 @@ impl Chunk {
 }
 
 pub trait ChunkVecUtils {
+    fn get_chunk_of_type_optionally(&self, chunk_type: &str) -> Option<&Chunk>;
     fn get_chunk_of_type(&self, chunk_type: &str) -> &Chunk;
     fn get_mver_chunk(&self) -> ChunkMver;
     fn get_mphd_chunk(&self) -> ChunkMphd;
+    fn get_main(&self) -> ChunkMain;
+    fn get_modf(&self) -> Option<ChunkModf>;
     fn get_mhdr(&self) -> ChunkMhdr;
     fn get_mcin(&self) -> Vec<ChunkMcin>;
     fn get_mtex(&self) -> ChunkMtex;
@@ -106,8 +109,12 @@ pub trait ChunkVecUtils {
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
+    fn get_chunk_of_type_optionally(&self, chunk_type: &str) -> Option<&Chunk> {
+        self.iter().find(|it| it.get_id_as_string() == chunk_type.to_owned())
+    }
+
     fn get_chunk_of_type(&self, chunk_type: &str) -> &Chunk {
-        self.iter().find(|it| it.get_id_as_string() == chunk_type.to_owned()).unwrap()
+        self.get_chunk_of_type_optionally(chunk_type).unwrap()
     }
 
     fn get_mver_chunk(&self) -> ChunkMver {
@@ -117,6 +124,10 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_mphd_chunk(&self) -> ChunkMphd {
         ChunkMphd::from_chunk(self.get_chunk_of_type("MPHD"))
     }
+
+    fn get_main(&self) -> ChunkMain { ChunkMain::from_chunk(self.get_chunk_of_type("MAIN")) }
+
+    fn get_modf(&self) -> Option<ChunkModf> { self.get_chunk_of_type_optionally("MODF").map(ChunkModf::from_chunk) }
 
     fn get_mhdr(&self) -> ChunkMhdr {
         ChunkMhdr::from_chunk(self.get_chunk_of_type("MHDR"))
@@ -175,6 +186,84 @@ impl ChunkMphd {
             flags: c.data.get_u32(0).unwrap(),
             something: c.data.get_u32(4).unwrap(),
             unused: c.data[8..14].try_into().unwrap(),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMain(pub Vec<ChunkMainItem>);
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMainItem {
+    pub flags: u32,
+    pub area: u32,
+}
+
+impl ChunkMain {
+    pub fn from_chunk(c: &Chunk) -> ChunkMain {
+        assert_eq!(c.get_id_as_string(), "MAIN");
+        assert_eq!(c.size, 32768);
+        let items = c.data.chunks(8)
+            .map(|c| {
+                let c = c.to_vec();
+                let flags = c.get_u32(0).unwrap();
+                let area = c.get_u32(4).unwrap();
+                ChunkMainItem { flags, area }
+            })
+            .collect();
+
+        ChunkMain(items)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkModf {
+    id: u32,
+    dynamic_id: u32,
+    pos: [f32; 3],
+    orientation: [f32; 3],
+    bounding_box: [f32; 6],
+    flags: u16,
+    doodad_set_index: u16,
+    name_set: u16,
+    padding: u16,
+}
+
+impl ChunkModf {
+    pub fn from_chunk(c: &Chunk) -> ChunkModf {
+        assert_eq!(c.get_id_as_string(), "MODF");
+        assert_eq!(c.size, 64);
+        let id = c.data.get_u32(0).unwrap();
+        let dynamic_id = c.data.get_u32(4).unwrap();
+        let pos_x = c.data.get_f32(8).unwrap();
+        let pos_y = c.data.get_f32(12).unwrap();
+        let pos_z = c.data.get_f32(16).unwrap();
+        let pos = [pos_x, pos_y, pos_z];
+        let orient_x = c.data.get_f32(20).unwrap();
+        let orient_y = c.data.get_f32(24).unwrap();
+        let orient_z = c.data.get_f32(28).unwrap();
+        let orientation = [orient_x, orient_y, orient_z];
+        let b1 = c.data.get_f32(32).unwrap();
+        let b2 = c.data.get_f32(36).unwrap();
+        let b3 = c.data.get_f32(40).unwrap();
+        let b4 = c.data.get_f32(44).unwrap();
+        let b5 = c.data.get_f32(48).unwrap();
+        let b6 = c.data.get_f32(52).unwrap();
+        let bounding_box = [b1, b2, b3, b4, b5, b6];
+        let flags = c.data.get_u16(56).unwrap();
+        let doodad_set_index = c.data.get_u16(58).unwrap();
+        let name_set = c.data.get_u16(60).unwrap();
+        let padding = c.data.get_u16(62).unwrap();
+        ChunkModf {
+            id,
+            dynamic_id,
+            pos,
+            orientation,
+            bounding_box,
+            flags,
+            doodad_set_index,
+            name_set,
+            padding,
         }
     }
 }

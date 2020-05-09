@@ -1,12 +1,14 @@
-use crate::formats::chunk::{Chunk, ChunkVecUtils, ChunkMver, ChunkMphd};
+use crate::formats::chunk::{Chunk, ChunkVecUtils, ChunkMver, ChunkMphd, ChunkMain, ChunkMwmo, ChunkModf};
 use crate::common::R;
+use serde::{Serialize, Deserialize};
 
-
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct WdtFile {
     pub mver: ChunkMver,
     pub mphd: ChunkMphd,
-    // incomplete
+    pub main: ChunkMain,
+    pub mwmo: ChunkMwmo,
+    pub modf: Option<ChunkModf>,
 }
 
 impl WdtFile {
@@ -18,9 +20,15 @@ impl WdtFile {
     fn new(chunks: Vec<Chunk>) -> WdtFile {
         let mver = chunks.get_mver_chunk();
         let mphd = chunks.get_mphd_chunk();
+        let main = chunks.get_main();
+        let mwmo = chunks.get_mwmo();
+        let modf = chunks.get_modf();
         WdtFile {
             mver,
             mphd,
+            main,
+            mwmo,
+            modf,
         }
     }
 }
