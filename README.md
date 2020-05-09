@@ -2,9 +2,6 @@
 
 # About
 
-This tool allows you to output wow file contents into your terminal. 
-
-
 > `./wow-file-tools --help`
 
 ```
