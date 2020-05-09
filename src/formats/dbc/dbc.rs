@@ -5,6 +5,7 @@ use crate::common::R;
 use crate::formats::dbc::loading_screens::LoadingScreenDbcRow;
 use crate::formats::dbc::area_table::AreaTableDbcRow;
 use crate::formats::dbc::light_sky_box::LightSkyBoxDbcRow;
+use crate::formats::dbc::battle_master_list::BattleMasterListDbcRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -21,14 +22,13 @@ fn load_dbc<T>(path: &str, row_mapper: Box<DbcRowProcessor<T>>) -> R<Dbc<T>>
     row_mapper.call((&mut row_builder, &dbc))?;
     Ok(Dbc {
         header: dbc.header,
-        rows: row_builder
+        rows: row_builder,
     })
 }
 
 pub fn load_map_dbc_from_path(path: &str) -> R<Dbc<MapDbcRow>> {
     load_dbc(path, Box::new(MapDbcRow::process))
 }
-
 
 pub fn load_loading_screens_dbc_from_path(path: &str) -> R<Dbc<LoadingScreenDbcRow>> {
     load_dbc(path, Box::new(LoadingScreenDbcRow::process))
@@ -41,3 +41,8 @@ pub fn load_area_table_from_path(path: &str) -> R<Dbc<AreaTableDbcRow>> {
 pub fn load_light_sky_box_from_path(path: &str) -> R<Dbc<LightSkyBoxDbcRow>> {
     load_dbc(path, Box::new(LightSkyBoxDbcRow::process))
 }
+
+pub fn load_battle_master_list_from_path(path: &str) -> R<Dbc<BattleMasterListDbcRow>> {
+    load_dbc(path, Box::new(BattleMasterListDbcRow::process))
+}
+

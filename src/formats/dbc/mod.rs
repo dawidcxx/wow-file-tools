@@ -3,6 +3,7 @@ pub mod dbc;
 pub mod loading_screens;
 pub mod area_table;
 pub mod light_sky_box;
+pub mod battle_master_list;
 
 use std::clone::Clone;
 use std::fs::File;
@@ -62,6 +63,10 @@ impl DbcFileIteratorRow {
 
     pub fn get_number_column(&self, column: usize) -> R<u32> {
         self.file_bytes.get_u32(self.get_col_offset(column))
+    }
+
+    pub fn get_number_column_signed(&self, column: usize) -> R<i32> {
+        self.file_bytes.get_i32(self.get_col_offset(column))
     }
 
     pub fn get_float_column(&self, column: usize) -> R<f32> {
@@ -163,65 +168,3 @@ fn get_dbc_header(dbc_content: &Vec<u8>) -> R<DbcHeader> {
     };
     Ok(result)
 }
-
-impl DbcFile {
-    pub fn get_battle_master_list_entries() -> R<Vec<BattleMasterListDbcRow>> {
-        let mut builder = Vec::with_capacity(10);
-        let file = DbcFile::new("dbc/BattlemasterList.dbc")?;
-        for row in &file {
-            let row = BattleMasterListDbcRow {
-                id: row.get_number_column(1)?,
-                map_ref: row.get_number_column(2)?,
-                instance_type: row.get_number_column(10)?,
-                name: row.get_string_column(12)?,
-            };
-            if row.is_arena() {
-                builder.push(row);
-            }
-        }
-        Ok(builder)
-    }
-
-    pub fn get_area_table_entries() -> R<Vec<AreaTableDbcRow>> {
-        let mut builder = Vec::with_capacity(10);
-        let file = DbcFile::new("dbc/AreaTable.dbc")?;
-
-        for row in &file {
-            let row = AreaTableDbcRow {
-                id: row.get_number_column(1)?,
-                map_ref: row.get_number_column(2)?,
-                sub_area_ref: row.get_number_column(3)?,
-                area_name: row.get_string_column(12)?,
-            };
-            builder.push(row);
-        }
-
-        Ok(builder)
-    }
-}
-
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BattleMasterListDbcRow {
-    pub id: u32,
-    pub map_ref: u32,
-    pub instance_type: u32,
-    pub name: String,
-}
-
-impl BattleMasterListDbcRow {
-    pub fn is_arena(&self) -> bool {
-        self.instance_type == 4
-    }
-}
-
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AreaTableDbcRow {
-    pub id: u32,
-    pub map_ref: u32,
-    pub sub_area_ref: u32,
-    pub area_name: String,
-}
-
-

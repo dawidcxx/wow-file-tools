@@ -68,6 +68,7 @@ fn get_view_result(
         "dbc" => {
             let file_name = extract_file_name(file_path_str);
             match file_name {
+                "BattlemasterList.dbc" => serialize_result(view_cmd, load_battle_master_list_from_path(file_path_str))?,
                 "LightSkybox.dbc" => serialize_result(view_cmd, load_light_sky_box_from_path(file_path_str))?,
                 "AreaTable.dbc" => serialize_result(view_cmd, load_area_table_from_path(file_path_str))?,
                 "Map.dbc" => serialize_result(view_cmd, load_map_dbc_from_path(file_path_str))?,

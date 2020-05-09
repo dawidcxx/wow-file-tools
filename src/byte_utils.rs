@@ -6,6 +6,7 @@ pub trait VecUtils {
     fn get_reversed_string(&self, from: usize, to: usize) -> R<String>;
     fn get_string(&self, from: usize, to: usize) -> R<String>;
     fn get_string_null_terminated(&self, offset: usize) -> R<String>;
+    fn get_i32(&self, offset: usize) -> R<i32>;
     fn get_u16(&self, offset: usize) -> R<u16>;
     fn get_u32(&self, offset: usize) -> R<u32>;
     fn get_f32(&self, offset: usize) -> R<f32>;
@@ -39,6 +40,11 @@ impl VecUtils for Vec<u8> {
             .map(|v| *v)
             .collect();
         Ok(String::from_utf8(og)?)
+    }
+
+    fn get_i32(&self, offset: usize) -> R<i32> {
+        let slice: [u8; 4] = self.get_four_bytes(offset)?;
+        Ok(i32::from_le_bytes(slice))
     }
 
     fn get_u16(&self, offset: usize) -> R<u16> {
