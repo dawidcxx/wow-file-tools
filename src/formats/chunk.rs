@@ -5,6 +5,7 @@ use crate::byte_utils::*;
 use std::convert::TryInto;
 use serde::{Serialize, Deserialize};
 use crate::common::R;
+use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Chunk {
@@ -16,7 +17,7 @@ pub struct Chunk {
 impl Chunk {
     pub fn get_id_as_string(&self) -> String { from_utf8(&self.id).unwrap().chars().rev().collect() }
 
-    pub fn from_path(path: &str) -> R<Vec<Chunk>> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> R<Vec<Chunk>> {
         let mut f = File::open(path)?;
         let file_size = f.metadata()?.len() as usize;
         let mut buffered_file = Vec::with_capacity(file_size);
@@ -127,7 +128,7 @@ impl ChunkVecUtils for Vec<Chunk> {
 
     fn get_main(&self) -> ChunkMain { ChunkMain::from_chunk(self.get_chunk_of_type("MAIN")) }
 
-    fn get_modf(&self) -> Option<ChunkModf> { self.get_chunk_of_type_optionally("MODF").map(ChunkModf::from_chunk) }
+    fn get_modf(&self) -> Option<ChunkModf> { self.get_chunk_of_type_optionally("MODF").and_then(ChunkModf::from_chunk) }
 
     fn get_mhdr(&self) -> ChunkMhdr {
         ChunkMhdr::from_chunk(self.get_chunk_of_type("MHDR"))
@@ -230,9 +231,14 @@ pub struct ChunkModf {
 }
 
 impl ChunkModf {
-    pub fn from_chunk(c: &Chunk) -> ChunkModf {
+    pub fn from_chunk(c: &Chunk) -> Option<ChunkModf> {
         assert_eq!(c.get_id_as_string(), "MODF");
-        assert_eq!(c.size, 64);
+        assert!([64, 0].contains(&c.size), "MODF size should either be 64 or 0.");
+
+        if c.size == 0 {
+            return None;
+        }
+
         let id = c.data.get_u32(0).unwrap();
         let dynamic_id = c.data.get_u32(4).unwrap();
         let pos_x = c.data.get_f32(8).unwrap();
@@ -254,7 +260,7 @@ impl ChunkModf {
         let doodad_set_index = c.data.get_u16(58).unwrap();
         let name_set = c.data.get_u16(60).unwrap();
         let padding = c.data.get_u16(62).unwrap();
-        ChunkModf {
+        Some(ChunkModf {
             id,
             dynamic_id,
             pos,
@@ -264,7 +270,7 @@ impl ChunkModf {
             doodad_set_index,
             name_set,
             padding,
-        }
+        })
     }
 }
 

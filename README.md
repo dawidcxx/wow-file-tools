@@ -64,6 +64,10 @@ The `view` command will dump the conversion of the binary file into JSON. Suppor
 
 *Note:* some formats might be lacking fields
 
+- ### Resolve Map assets
+
+The `resolve-map-assets` will, for a given map-id output all the maps dependencies. The `map-id` referes to a entry in `Map.dbc`. 
+A `workspace` will be required, which is simply a folder of extracted WoW assets. 
 
 # Compiling
 

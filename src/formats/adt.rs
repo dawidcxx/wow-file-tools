@@ -1,6 +1,7 @@
 use crate::formats::chunk::*;
 use serde::{Deserialize, Serialize};
 use crate::common::R;
+use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AdtFile {
@@ -16,7 +17,7 @@ pub struct AdtFile {
 }
 
 impl AdtFile {
-    pub fn from_path(path: &str) -> R<AdtFile> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> R<AdtFile> {
         let chunks = Chunk::from_path(path)?;
         Ok(AdtFile::new(chunks))
     }

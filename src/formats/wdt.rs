@@ -1,6 +1,7 @@
 use crate::formats::chunk::{Chunk, ChunkVecUtils, ChunkMver, ChunkMphd, ChunkMain, ChunkMwmo, ChunkModf};
 use crate::common::R;
 use serde::{Serialize, Deserialize};
+use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WdtFile {
@@ -12,7 +13,7 @@ pub struct WdtFile {
 }
 
 impl WdtFile {
-    pub fn from_path(path: &str) -> R<WdtFile> {
+    pub fn from_path<P: AsRef<Path>>(path: P) -> R<WdtFile> {
         let chunks = Chunk::from_path(path)?;
         Ok(WdtFile::new(chunks))
     }
