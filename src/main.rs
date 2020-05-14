@@ -16,7 +16,6 @@ use crate::formats::adt::AdtFile;
 use crate::formats::wmo::{WmoFile};
 use crate::formats::dbc::dbc::*;
 use crate::formats::wdt::WdtFile;
-use std::panic::resume_unwind;
 
 fn main() {
     let root_cmd = RootCmd::parse();

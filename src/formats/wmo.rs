@@ -3,6 +3,7 @@ use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMog
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use crate::byte_utils::VecUtils;
 
 const ROOT_FILE_CHUNKS: &[&str] = &["MOMT", "MOGI", "MOSB", "MOVV", "MODN"];
 const GROUP_FILE_CHUNKS: &[&str] = &["MOGP", "MOPY", "MOVI", "MONR", "MOTV"];
@@ -26,7 +27,7 @@ pub struct WmoRootFile {
     pub mohd: ChunkMohd,
     pub momt: (),
     pub mogn: ChunkMogn,
-    pub mogi: (),
+    pub mogi: ChunkMogi,
     pub mosb: (),
     pub mopv: (),
     pub mopt: (),
@@ -132,6 +133,17 @@ impl WmoFileVariant {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMogiItem {
+    pub flags: u32,
+    pub bounding_box: [f32; 6],
+    pub name_offset: i32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMogi(pub Vec<ChunkMogiItem>);
+
+
 impl WmoRootFile {
     pub fn get_group_names(n_groups: u32, original_file_name: &str) -> Vec<String> {
         let file_name = original_file_name
@@ -155,6 +167,7 @@ impl WmoRootFile {
         let mohd = chunks.get_mohd();
         let mogn = chunks.get_mogn();
         let modn = chunks.get_modn();
+        let mogi = chunks.get_mogi();
 
         WmoRootFile {
             mver,
@@ -162,7 +175,7 @@ impl WmoRootFile {
             mohd,
             momt: (),
             mogn,
-            mogi: (),
+            mogi,
             mosb: (),
             mopv: (),
             mopt: (),
@@ -206,6 +219,43 @@ impl WmoGroupFile {
     }
 }
 
+trait WmoChunkExt {
+    fn get_mogi(&self) -> ChunkMogi;
+}
+
+impl WmoChunkExt for Vec<Chunk> {
+    fn get_mogi(&self) -> ChunkMogi { ChunkMogi::from_chunk(self.get_chunk_of_type("MOGI")) }
+}
+
+impl ChunkMogi {
+    pub fn get_v(&self) {
+
+    }
+    fn from_chunk(chunk: &Chunk) -> ChunkMogi {
+        let mapped = chunk.data.chunks(32)
+            .map(|segment| {
+                let segment = segment.to_vec();
+                let flags = segment.get_u32(0).unwrap();
+                let b1 = segment.get_f32(4).unwrap();
+                let b2 = segment.get_f32(8).unwrap();
+                let b3 = segment.get_f32(12).unwrap();
+                let b4 = segment.get_f32(16).unwrap();
+                let b5 = segment.get_f32(20).unwrap();
+                let b6 = segment.get_f32(24).unwrap();
+                let bounding_box = [b1, b2, b3, b4, b5, b6];
+                let name_offset = segment.get_i32(28).unwrap();
+                ChunkMogiItem {
+                    flags,
+                    bounding_box,
+                    name_offset,
+                }
+            })
+            .collect();
+
+        ChunkMogi(mapped)
+    }
+}
+
 #[cfg(test)]
 #[test]
 fn wmo_root_get_group_names() {
@@ -232,6 +282,4 @@ fn wmo_root_get_group_names() {
         "test00_003.wmo",
         "test00_004.wmo",
     ]);
-
-
 }

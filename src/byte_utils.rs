@@ -10,6 +10,7 @@ pub trait VecUtils {
     fn get_u16(&self, offset: usize) -> R<u16>;
     fn get_u32(&self, offset: usize) -> R<u32>;
     fn get_f32(&self, offset: usize) -> R<f32>;
+    fn get_byte(&self, offset: usize) -> R<u8>;
     fn get_two_bytes(&self, offset: usize) -> R<[u8; 2]>;
     fn get_four_bytes(&self, offset: usize) -> R<[u8; 4]>;
     fn get_null_terminated_strings(&self) -> R<Vec<String>>;
@@ -60,6 +61,10 @@ impl VecUtils for Vec<u8> {
     fn get_f32(&self, offset: usize) -> R<f32> {
         let slice: [u8; 4] = self.get_four_bytes(offset)?;
         Ok(f32::from_le_bytes(slice))
+    }
+
+    fn get_byte(&self, offset: usize) -> R<u8> {
+        Ok(self.get(offset).ok_or(format!("Byte with offset {} is out of range!", offset))?.clone())
     }
 
     fn get_two_bytes(&self, offset: usize) -> R<[u8; 2]> {

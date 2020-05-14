@@ -6,7 +6,6 @@ use crate::formats::dbc::map::MapDbcRow;
 use walkdir::{WalkDir, DirEntry};
 use crate::formats::adt::AdtFile;
 use std::fs::read_dir;
-use std::ops::Deref;
 use serde::{Serialize, Deserialize};
 use crate::formats::wmo::WmoFile;
 
@@ -56,7 +55,6 @@ pub fn resolve_map_assets(
             if let Some(wmo_path) = join_path_ignoring_casing(workspace_root, &wmo) {
                 let wmo = WmoFile::from_path(wmo_path.to_str().unwrap())?;
                 push_dep(&mut map_dependencies, &wmo.root.motx.0);
-                push_dep(&mut map_dependencies, &wmo.root.mogn.0);
                 push_dep(&mut map_dependencies, &wmo.root.modn.0);
             } else {
                 let msg = format!(
