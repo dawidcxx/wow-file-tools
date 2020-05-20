@@ -143,7 +143,6 @@ pub struct ChunkMogiItem {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ChunkMogi(pub Vec<ChunkMogiItem>);
 
-
 impl WmoRootFile {
     pub fn get_group_names(n_groups: u32, original_file_name: &str) -> Vec<String> {
         let file_name = original_file_name
@@ -228,9 +227,6 @@ impl WmoChunkExt for Vec<Chunk> {
 }
 
 impl ChunkMogi {
-    pub fn get_v(&self) {
-
-    }
     fn from_chunk(chunk: &Chunk) -> ChunkMogi {
         let mapped = chunk.data.chunks(32)
             .map(|segment| {
