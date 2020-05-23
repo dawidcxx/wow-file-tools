@@ -16,6 +16,7 @@ use crate::formats::adt::AdtFile;
 use crate::formats::wmo::{WmoFile};
 use crate::formats::dbc::dbc::*;
 use crate::formats::wdt::WdtFile;
+use crate::formats::m2::M2File;
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -88,6 +89,7 @@ fn get_view_result(
         "wdt" => serialize_result(root_cmd, WdtFile::from_path(file_path_str))?,
         "wmo" => serialize_result(root_cmd, WmoFile::from_path(file_path_str))?,
         "adt" => serialize_result(root_cmd, AdtFile::from_path(file_path_str))?,
+        "m2" => serialize_result(root_cmd, M2File::from_path(file_path_str))?,
         _ => {
             let err_msg = format!("Unsupported file extension: ({})", extension);
             return Err(err_msg.into());

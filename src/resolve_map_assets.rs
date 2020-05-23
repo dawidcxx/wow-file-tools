@@ -8,6 +8,9 @@ use crate::formats::adt::AdtFile;
 use std::fs::read_dir;
 use serde::{Serialize, Deserialize};
 use crate::formats::wmo::{WmoFile};
+use std::collections::HashSet;
+use std::iter::FromIterator;
+use std::fs;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ResolveMapAssetsCmdWarn {
@@ -67,8 +70,20 @@ pub fn resolve_map_assets(
         let adt = AdtFile::from_path(adt_path)?;
 
         add_peer_dep("ADT", "mtex", &adt.mtex.0);
-        add_peer_dep("ADT", "mmdx", &adt.mmdx.0);
         add_peer_dep("ADT", "mwmo", &adt.mwmo.0);
+
+        // sometimes mmdx says it requires a mdx but m2's will also work
+        let mut m2_patched: Vec<String> = adt.mmdx.0
+            .iter()
+            .filter(|v| v.ends_with("MDX"))
+            .map(|v| v.replace("MDX", "M2"))
+            .collect();
+
+        let mut mmdx_patched = Vec::new();
+        mmdx_patched.append(&mut m2_patched);
+        mmdx_patched.append(&mut adt.mmdx.0.clone());
+
+        add_peer_dep("ADT", "mmdx", &mmdx_patched);
 
         for wmo in adt.mwmo.0 {
             let wmo = normalize_path(&wmo);
@@ -92,10 +107,40 @@ pub fn resolve_map_assets(
 
     verify_dependencies(&mut dependencies)?;
 
+    // prune_garbage(workspace_root, &dependencies);
+
     Ok(ResolveMapAssetsCmdResult {
         warns,
         dependencies,
     })
+}
+
+fn prune_garbage(
+    workspace_root: &Path,
+    dependencies: &Vec<PathBuf>,
+) {
+    let dep_cache: HashSet<PathBuf> = HashSet::from_iter(dependencies
+        .iter()
+        .map(|it| {
+            fs::canonicalize(it).unwrap()
+        })
+    );
+
+    for entry in WalkDir::new(workspace_root)
+        .into_iter()
+        .filter_map(|e| e.ok()) {
+        if entry.metadata().unwrap().is_dir() {
+            // ignore dirs
+            continue;
+        }
+
+        let path = fs::canonicalize(entry.path()).unwrap();
+
+
+        if !dep_cache.contains(&path) {
+            println!("Not?? {:?}", path);
+        }
+    }
 }
 
 fn verify_dependencies(dependencies: &Vec<PathBuf>) -> R<()> {
@@ -168,20 +213,6 @@ fn get_wdt_file(
         );
         Err(msg.into())
     }
-
-    // let entries = find_file_by_filename(&workspace_root.join("World/Maps"), 2, wdt_file_name.as_str());
-    // if entries.is_empty() {
-    //     // ensure wdt file exist
-    //     let msg = ;
-    //     return Err(msg.into());
-    // } else if entries.len() != 1 {
-    //     let msg = format!(
-    //         "{} matches more than 1 file. Corrupted DBC or workspace.",
-    //         wdt_file_name
-    //     );
-    //     return Err(msg.into());
-    // }
-    // Ok(entries[0].clone())
 }
 
 fn normalize_path(dep: &String) -> String {
