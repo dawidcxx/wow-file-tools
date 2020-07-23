@@ -4,7 +4,9 @@
 pub mod byte_utils;
 pub mod formats;
 pub mod common;
-mod resolve_map_assets;
+mod resolve_map_assets_v2;
+
+// mod resolve_map_assets;
 
 use clap::Clap;
 use crate::common::R;
@@ -17,6 +19,8 @@ use crate::formats::wmo::{WmoFile};
 use crate::formats::dbc::dbc::*;
 use crate::formats::wdt::WdtFile;
 use crate::formats::m2::M2File;
+use crate::resolve_map_assets_v2::ResolveMapAssetsCmdResult;
+use std::fs::read_dir;
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -55,13 +59,22 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
             get_view_result(&root_cmd, file_path_str, extension)?
         }
         Cmd::ResolveMapAssets(cmd) => {
-            serialize_result(&root_cmd, resolve_map_assets::resolve_map_assets(cmd))?
+            serialize_result(&root_cmd, handle_resolve_map_assets_cmd(cmd))?
         }
     };
 
     println!("{}", result);
 
     Ok(())
+}
+
+fn handle_resolve_map_assets_cmd(
+    cmd: &ResolveMapAssetsCmd
+) -> R<ResolveMapAssetsCmdResult> {
+    resolve_map_assets_v2::resolve_map_assets(
+        Path::new(cmd.workspace.as_str()),
+        cmd.map_id as u32,
+    )
 }
 
 fn get_view_result(

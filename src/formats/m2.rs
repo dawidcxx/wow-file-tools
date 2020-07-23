@@ -28,17 +28,20 @@ impl M2File {
 
         let n_textures = bytes.get_u32(80)?;
 
-        let textures = if n_textures > 0 {
-            let text_offset = bytes.get_u32(84)?;
-            let mut builder = Vec::with_capacity(n_textures as usize);
-            for i in 1..=n_textures {
-                let name_offset = bytes.get_u32((text_offset + (12 * i)) as usize)?;
-                let name = bytes.get_string_null_terminated(name_offset as usize)?;
-                if name.ne("") { // ignore empty strings..
-                    builder.push(name);
+        let text_offset = bytes.get_u32(84)?;
+        let mut builder = Vec::with_capacity(n_textures as usize);
+        for i in 1..=n_textures {
+            let name_offset = bytes.get_u32((text_offset + (12 * i)) as usize)?;
+            let name = bytes.get_string_null_terminated(name_offset as usize);
+            if let Ok(name) = name {
+                // a lot of garbage names.. filtering them out for now.
+                if name.ends_with("blp") || name.ends_with("BLP") {
+                    builder.push(name)
                 }
             }
-            builder
+        }
+        builder = if n_textures > 0 {
+            vec![]
         } else {
             vec![]
         };
@@ -47,7 +50,7 @@ impl M2File {
             magic,
             version,
             name,
-            textures,
+            textures: builder,
         })
     }
 }

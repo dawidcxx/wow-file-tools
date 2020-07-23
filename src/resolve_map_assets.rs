@@ -11,6 +11,7 @@ use crate::formats::wmo::{WmoFile};
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::fs;
+use crate::formats::m2::M2File;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ResolveMapAssetsCmdWarn {
@@ -71,19 +72,7 @@ pub fn resolve_map_assets(
 
         add_peer_dep("ADT", "mtex", &adt.mtex.0);
         add_peer_dep("ADT", "mwmo", &adt.mwmo.0);
-
-        // sometimes mmdx says it requires a mdx but m2's will also work
-        let mut m2_patched: Vec<String> = adt.mmdx.0
-            .iter()
-            .filter(|v| v.ends_with("MDX"))
-            .map(|v| v.replace("MDX", "M2"))
-            .collect();
-
-        let mut mmdx_patched = Vec::new();
-        mmdx_patched.append(&mut m2_patched);
-        mmdx_patched.append(&mut adt.mmdx.0.clone());
-
-        add_peer_dep("ADT", "mmdx", &mmdx_patched);
+        add_peer_dep("ADT", "mmdx", &gen_m2_alternatives_from_mdx(workspace_root, &adt.mmdx.0));
 
         for wmo in adt.mwmo.0 {
             let wmo = normalize_path(&wmo);
@@ -92,6 +81,7 @@ pub fn resolve_map_assets(
                 dependencies.push(wmo_path);
                 add_peer_dep("WMO", "motx", &wmo.root.motx.0);
                 add_peer_dep("WMO", "modn", &wmo.root.modn.0);
+                add_peer_dep("WMO", "modn", &gen_m2_alternatives_from_mdx(workspace_root, &wmo.root.modn.0));
             } else {
                 let msg = format!(
                     "ADT {} wmo chunk {} could not be found on the disk.",
@@ -101,18 +91,59 @@ pub fn resolve_map_assets(
             }
         }
     }
+    // let cpy = map_peer_dependencies.clone();
+    //
+    // let m2s: Vec<String> = cpy
+    //     .iter()
+    //     .filter(|it| it.extension().unwrap().eq("m2") || it.extension().unwrap().eq("M2"))
+    //     .map(|p| M2File::from_path(p))
+    //     .filter_map(|it| it.ok())
+    //     .flat_map(|m2| m2.textures)
+    //     .collect();
+    //
+    // add_peer_dep("M2", "m2", &vec![]);
+    //
 
     dependencies.append(&mut map_peer_dependencies);
     warns.append(&mut map_peer_warns);
 
+
     verify_dependencies(&mut dependencies)?;
 
-    // prune_garbage(workspace_root, &dependencies);
+    prune_garbage(workspace_root, &dependencies);
 
     Ok(ResolveMapAssetsCmdResult {
         warns,
         dependencies,
     })
+}
+
+// sometimes we got mdx's as dependencies
+// but .m2's will also work.
+fn gen_m2_alternatives_from_mdx(
+    workspace_root: &Path,
+    mdxs: &Vec<String>,
+) -> Vec<String> {
+    let mut join = Vec::with_capacity(mdxs.len() * 2);
+    // let mut blps = Vec::new();
+    let mut patched = mdxs
+        .iter()
+        .filter(|v| v.ends_with("MDX"))
+        .map(|v| v.replace("MDX", "M2"))
+        .map(|v| v.replace("mdx", "m2"))
+        .collect();
+
+    // for x in patched.iter() {
+    //     if let Some(dep) = join_path_ignoring_casing(workspace_root, x) {
+    //         if let Ok(m2) = M2File::from_path(dep) {
+    //             blps.push(&mut m2.textures.clone())
+    //         }
+    //     }
+    // }
+
+    join.append(&mut patched);
+    join.append(&mut mdxs.clone());
+    join
 }
 
 fn prune_garbage(
@@ -136,9 +167,8 @@ fn prune_garbage(
 
         let path = fs::canonicalize(entry.path()).unwrap();
 
-
         if !dep_cache.contains(&path) {
-            println!("Not?? {:?}", path);
+            // println!("PISSING {:?}", path);
         }
     }
 }
@@ -249,27 +279,7 @@ fn find_file_by_extension<P: AsRef<Path>>(
 
 type FileFinderPredicate = dyn Fn(&DirEntry) -> bool;
 
-fn find_file_by_predicate<P: AsRef<Path>>(
-    path: P,
-    depth: usize,
-    predicate: Box<FileFinderPredicate>,
-) -> Vec<DirEntry> {
-    let mut res = Vec::new();
-    for entry in WalkDir::new(path)
-        .max_depth(depth)
-        .into_iter()
-        .filter_map(|e| e.ok())
-    {
-        let metadata = entry.metadata();
-        if metadata.is_err() { continue; }
-        let metadata = metadata.unwrap();
-        if metadata.is_dir() { continue; }
-        if predicate.call((&entry, )) {
-            res.push(entry);
-        }
-    }
-    res
-}
+
 
 fn join_path_ignoring_casing(
     base: &Path,
