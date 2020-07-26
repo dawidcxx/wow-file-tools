@@ -4,7 +4,7 @@
 pub mod byte_utils;
 pub mod formats;
 pub mod common;
-mod resolve_map_assets_v2;
+mod resolve_map_assets;
 
 // mod resolve_map_assets;
 
@@ -19,8 +19,7 @@ use crate::formats::wmo::{WmoFile};
 use crate::formats::dbc::dbc::*;
 use crate::formats::wdt::WdtFile;
 use crate::formats::m2::M2File;
-use crate::resolve_map_assets_v2::ResolveMapAssetsCmdResult;
-use std::fs::read_dir;
+use crate::resolve_map_assets::ResolveMapAssetsCmdResult;
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -71,9 +70,10 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
 fn handle_resolve_map_assets_cmd(
     cmd: &ResolveMapAssetsCmd
 ) -> R<ResolveMapAssetsCmdResult> {
-    resolve_map_assets_v2::resolve_map_assets(
+    resolve_map_assets::resolve_map_assets(
         Path::new(cmd.workspace.as_str()),
         cmd.map_id as u32,
+        cmd.prune_unused,
     )
 }
 
@@ -138,7 +138,7 @@ struct RootCmd {
     #[clap(short = "c", long = "compact", help = "Output JSON will no longer be pretty printed")]
     compact: bool,
 
-    #[clap(long = "no-result", help = "Don't output any result")]
+    #[clap(long = "no-result", help = "Don't output any result, useful for testing")]
     no_result: bool,
 
     #[clap(subcommand)]
@@ -167,6 +167,8 @@ pub struct ResolveMapAssetsCmd {
     #[clap(short = "m", long = "map-id")]
     map_id: usize,
 
+    #[clap(short = "p", long = "prune-unused", help = "Remove unneeded files within the workspace")]
+    prune_unused: bool,
 }
 
 struct ProgramErr {

@@ -17,20 +17,16 @@ pub struct ChunkTexs {
 
 impl MdxFile {
     pub fn from_path<P: AsRef<Path>>(path: P) -> R<MdxFile> {
-        let chunks = Chunk::from_path(path)?;
-        todo!()
-        // MdxFile::from_bytes(data)
-        //     .map_err(|e| {
-        //         format!("Failed to read M2 file. {}", e).into()
-        //     })
+        let _chunks = Chunk::from_path(path)?;
+        todo!("Mdx file handling is not implemented yet")
     }
 
-    fn from_bytes(chunks: Vec<Chunk>) -> R<MdxFile> {
-        let texs = chunks.get_texs()?;
-        Ok(MdxFile {
-            texs,
-        })
-    }
+    // fn from_bytes(chunks: Vec<Chunk>) -> R<MdxFile> {
+    //     let texs = chunks.get_texs()?;
+    //     Ok(MdxFile {
+    //         texs,
+    //     })
+    // }
 }
 
 

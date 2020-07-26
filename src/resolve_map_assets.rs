@@ -1,160 +1,189 @@
-use std::path::{Path, PathBuf};
-use crate::common::R;
-use crate::{ResolveMapAssetsCmd};
+use std::path::{PathBuf, Path};
+use crate::common::{R, err};
+use serde::{Serialize, Deserialize};
+use crate::resolve_map_assets::ResolveMapAssetsCmdWarn::Missing;
+use std::fs::read_dir;
 use crate::formats::dbc::dbc::load_map_dbc_from_path;
 use crate::formats::dbc::map::MapDbcRow;
-use walkdir::{WalkDir, DirEntry};
+use walkdir::{DirEntry, WalkDir};
 use crate::formats::adt::AdtFile;
-use std::fs::read_dir;
-use serde::{Serialize, Deserialize};
-use crate::formats::wmo::{WmoFile};
+use crate::formats::wmo::WmoFile;
+use crate::formats::m2::M2File;
 use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::fs;
-use crate::formats::m2::M2File;
+use crate::formats::mdx::MdxFile;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ResolveMapAssetsCmdWarn {
-    MISSING(String),
+    Missing(String),
+    FileParseFail(String),
+    FailedToRemoveFile(String),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResolveMapAssetsCmdResult {
     pub warns: Vec<ResolveMapAssetsCmdWarn>,
-    pub dependencies: Vec<PathBuf>,
+    pub results: Vec<PathBuf>,
 }
 
 pub fn resolve_map_assets(
-    cmd: &ResolveMapAssetsCmd
+    workspace_path: &Path,
+    map_id: u32,
+    should_prune_workspace: bool,
 ) -> R<ResolveMapAssetsCmdResult> {
-    let mut dependencies: Vec<PathBuf> = Vec::new();
-    let mut map_peer_dependencies: Vec<PathBuf> = Vec::new();
+    if !workspace_path.exists() {
+        return err(format!("Error: workspace '{:?}' not found on the file system.", workspace_path));
+    }
+
+    let mut results = Vec::new();
     let mut warns: Vec<ResolveMapAssetsCmdWarn> = Vec::new();
-    let mut map_peer_warns: Vec<ResolveMapAssetsCmdWarn> = Vec::new();
 
-    let workspace_root = Path::new(cmd.workspace.as_str());
+    let map_dbc_loc = join_path_ignoring_casing(workspace_path, "DBFilesClient/Map.dbc")
+        .ok_or("Missing Map.dbc file")?;
 
-    let map_dbc = load_map_dbc_from_path(
-        workspace_root.join("DBFilesClient/Map.dbc").to_str().unwrap()
-    )?;
+    let map_dbc = load_map_dbc_from_path(map_dbc_loc.str())?;
 
-    let map_dbc_row: MapDbcRow = map_dbc.rows.into_iter()
-        .find(|it| it.id == cmd.map_id as u32)
-        .map_or(Err(format!("Map with given id {} not found", cmd.map_id).into()) as R<MapDbcRow>, Ok)?;
-    let map_folder = get_maps_map_folder(workspace_root, &map_dbc_row)?;
+    let map_row = map_dbc.rows
+        .iter()
+        .find(|map| map.id == map_id)
+        .ok_or(format!("Map with id {} not found", map_id))?;
 
-    add_wdt_dep(&mut dependencies, &map_folder, &map_dbc_row)?;
-    add_wdl_dep(&mut dependencies, &mut warns, &map_dbc_row, &map_folder);
+    results.push(map_dbc_loc);
 
-    // helper lambda to add a peer dependency
-    let mut add_peer_dep = |origin: &str, marker: &str, asset_list: &Vec<String>| {
-        for asset in asset_list {
-            let asset = normalize_path(asset);
-            let dependency_path_opt = join_path_ignoring_casing(workspace_root, &asset);
-            if dependency_path_opt.is_some() {
-                let dependency_path = dependency_path_opt.unwrap();
-                map_peer_dependencies.push(dependency_path);
-            } else {
-                let msg = format!(
-                    "In file '{}' field '{}' with value '{}' could not be resolved on the disk.",
-                    origin, marker, asset
-                );
-                map_peer_warns.push(ResolveMapAssetsCmdWarn::MISSING(msg));
-            }
-        }
-    };
+    let maps_folder = join_path_ignoring_casing(
+        workspace_path,
+        "World/Maps",
+    ).ok_or("Missing World/Maps folder in workspace")?;
 
-    for adt_entry in find_file_by_extension(&map_folder, 2, ".adt") {
-        let adt_path = adt_entry.path();
-        dependencies.push(adt_path.to_path_buf());
+    // to(maybe)do: these could be a warning.
+    let wdt_file_path = get_wdt_path(&maps_folder, map_row)
+        .ok_or("Missing Map WDT file")?;
+    let wdl_file_path = get_wdl_path(&maps_folder, map_row)
+        .ok_or("Missing Map WDL file")?;
+
+    results.push(wdl_file_path);
+    results.push(wdt_file_path);
+
+    for adt_entry in find_files_by_extension(maps_folder, 2, ".adt") {
+        let adt_path = adt_entry.into_path();
+        results.push(adt_path.clone());
 
         let adt = AdtFile::from_path(adt_path)?;
 
-        add_peer_dep("ADT", "mtex", &adt.mtex.0);
-        add_peer_dep("ADT", "mwmo", &adt.mwmo.0);
-        add_peer_dep("ADT", "mmdx", &gen_m2_alternatives_from_mdx(workspace_root, &adt.mmdx.0));
+        add_wow_dep(
+            workspace_path,
+            adt.mtex.0,
+            &mut results,
+            &mut warns,
+        );
 
-        for wmo in adt.mwmo.0 {
-            let wmo = normalize_path(&wmo);
-            if let Some(wmo_path) = join_path_ignoring_casing(workspace_root, &wmo) {
-                let wmo = WmoFile::from_path(wmo_path.to_str().unwrap())?;
-                dependencies.push(wmo_path);
-                add_peer_dep("WMO", "motx", &wmo.root.motx.0);
-                add_peer_dep("WMO", "modn", &wmo.root.modn.0);
-                add_peer_dep("WMO", "modn", &gen_m2_alternatives_from_mdx(workspace_root, &wmo.root.modn.0));
-            } else {
-                let msg = format!(
-                    "ADT {} wmo chunk {} could not be found on the disk.",
-                    adt_path.to_string_lossy(), wmo
-                );
-                warns.push(ResolveMapAssetsCmdWarn::MISSING(msg));
-            }
+        let added_wmos = add_wow_dep(
+            workspace_path,
+            adt.mwmo.0,
+            &mut results,
+            &mut warns,
+        );
+
+        add_m2_type_wow_dep(
+            workspace_path,
+            adt.mmdx.0,
+            &mut results,
+            &mut warns,
+        );
+
+        for wmo_path in added_wmos {
+            let wmo = WmoFile::from_path(wmo_path.str())?;
+            add_wow_dep(
+                workspace_path,
+                wmo.root.motx.0,
+                &mut results,
+                &mut warns,
+            );
+            add_m2_type_wow_dep(
+                workspace_path,
+                wmo.root.modn.0,
+                &mut results,
+                &mut warns,
+            );
+
+            results.append(wmo.loaded_group_files.clone().as_mut())
         }
     }
-    // let cpy = map_peer_dependencies.clone();
-    //
-    // let m2s: Vec<String> = cpy
-    //     .iter()
-    //     .filter(|it| it.extension().unwrap().eq("m2") || it.extension().unwrap().eq("M2"))
-    //     .map(|p| M2File::from_path(p))
-    //     .filter_map(|it| it.ok())
-    //     .flat_map(|m2| m2.textures)
-    //     .collect();
-    //
-    // add_peer_dep("M2", "m2", &vec![]);
-    //
 
-    dependencies.append(&mut map_peer_dependencies);
-    warns.append(&mut map_peer_warns);
+    find_and_add_tileset_blps(
+        &mut results,
+    );
 
-
-    verify_dependencies(&mut dependencies)?;
-
-    prune_garbage(workspace_root, &dependencies);
+    if should_prune_workspace {
+        prune_workspace(workspace_path, &results, &mut warns);
+    }
 
     Ok(ResolveMapAssetsCmdResult {
         warns,
-        dependencies,
+        results,
     })
 }
 
-// sometimes we got mdx's as dependencies
-// but .m2's will also work.
-fn gen_m2_alternatives_from_mdx(
-    workspace_root: &Path,
-    mdxs: &Vec<String>,
-) -> Vec<String> {
-    let mut join = Vec::with_capacity(mdxs.len() * 2);
-    // let mut blps = Vec::new();
-    let mut patched = mdxs
+fn find_and_add_tileset_blps(
+    results: &mut Vec<PathBuf>,
+) {
+    fn try_find_blp_s_dep(
+        blp_root: &Path,
+        file_name: &str,
+    ) -> Option<PathBuf> {
+        let lower_case = blp_root.join(format!("{}_s.blp", file_name));
+        if lower_case.exists() {
+            return Some(lower_case);
+        }
+        let upper_case = blp_root.join(format!("{}_s.BLP", file_name));
+        if upper_case.exists() {
+            return Some(upper_case);
+        }
+        return None;
+    }
+
+    let mut builder = Vec::new();
+
+    for blp_dependency in results
         .iter()
-        .filter(|v| v.ends_with("MDX"))
-        .map(|v| v.replace("MDX", "M2"))
-        .map(|v| v.replace("mdx", "m2"))
-        .collect();
+        .filter_map(|dependency| dependency.extension()
+            .map(|ext| (dependency, ext)))
+        .filter(|(_, ext)| (*ext).eq("blp") || (*ext).eq("BLP"))
+        .map(|(dependency, _)| dependency)
+    {
+        let blp_dependency_str = blp_dependency.str();
 
-    // for x in patched.iter() {
-    //     if let Some(dep) = join_path_ignoring_casing(workspace_root, x) {
-    //         if let Ok(m2) = M2File::from_path(dep) {
-    //             blps.push(&mut m2.textures.clone())
-    //         }
-    //     }
-    // }
+        if !blp_dependency_str.to_uppercase().contains("TILESET") {
+            // Only TILESET's exhibit this weird behavior.
+            continue;
+        }
 
-    join.append(&mut patched);
-    join.append(&mut mdxs.clone());
-    join
+        let blp_root = blp_dependency.parent()
+            .expect("Expected BLP file to have a parent");
+        let file_name = blp_dependency.file_name()
+            .expect("Expected BLP file to have a filename")
+            .to_str()
+            .expect("BLP filename parse error")
+            .split(".")
+            .nth(0)
+            .expect("BLP filename parse error");
+
+        if let Some(blp_s) = try_find_blp_s_dep(blp_root, file_name) {
+            builder.push(blp_s);
+        }
+    }
+    results.append(&mut builder);
 }
 
-fn prune_garbage(
+fn prune_workspace(
     workspace_root: &Path,
     dependencies: &Vec<PathBuf>,
+    warns: &mut Vec<ResolveMapAssetsCmdWarn>,
 ) {
-    let dep_cache: HashSet<PathBuf> = HashSet::from_iter(dependencies
+    let dependency_lookup: HashSet<PathBuf> = HashSet::from_iter(dependencies
         .iter()
-        .map(|it| {
-            fs::canonicalize(it).unwrap()
-        })
+        .map(|it| fs::canonicalize(it).expect("Invalid path encountered"))
     );
 
     for entry in WalkDir::new(workspace_root)
@@ -165,133 +194,170 @@ fn prune_garbage(
             continue;
         }
 
-        let path = fs::canonicalize(entry.path()).unwrap();
+        let workspace_file = fs::canonicalize(entry.path())
+            .expect("Invalid path encountered");
 
-        if !dep_cache.contains(&path) {
-            // println!("PISSING {:?}", path);
+        if !dependency_lookup.contains(&workspace_file) {
+            // println!("To be trashed: {:?}", path);
+            if let Err(e) = fs::remove_file(&workspace_file) {
+                let msg = format!("Failed to delete '{}' reason: '{}'", workspace_file.str(), e);
+                warns.push(ResolveMapAssetsCmdWarn::FailedToRemoveFile(msg));
+            }
         }
     }
 }
 
-fn verify_dependencies(dependencies: &Vec<PathBuf>) -> R<()> {
-    for dependency in dependencies {
-        if !dependency.exists() {
-            let msg = format!("Program Error. Dependency {:?} not found on the disk. ", dependency);
-            return Err(msg.into());
-        }
-    }
-    Ok(())
-}
-
-fn add_wdt_dep(dependencies: &mut Vec<PathBuf>, map_folder: &PathBuf, map_dbc_row: &MapDbcRow) -> R<()> {
-    let wdt_file = get_wdt_file(&map_folder, map_dbc_row)?;
-    dependencies.push(wdt_file);
-    Ok(())
-}
-
-fn get_maps_map_folder(
+fn add_wow_dep(
     workspace_root: &Path,
-    map_dbc_row: &MapDbcRow,
-) -> R<PathBuf> {
-    let mut buf = PathBuf::new();
-    buf.push(workspace_root);
-    buf.push("World/Maps");
-    buf.push(map_dbc_row.internal_name.clone());
-
-    if !buf.exists() {
-        let msg = format!(
-            "It seems like the workspace is lacking a World/Maps folder"
-        );
-        return Err(msg.into());
-    }
-
-    Ok(buf)
-}
-
-fn add_wdl_dep(
-    dependencies: &mut Vec<PathBuf>,
+    wow_dependency_list: Vec<String>,
+    results: &mut Vec<PathBuf>,
     warns: &mut Vec<ResolveMapAssetsCmdWarn>,
-    map_row: &MapDbcRow,
-    map_folder: &PathBuf,
+) -> Vec<PathBuf> {
+    let mut added = Vec::new();
+    for dependency in wow_dependency_list {
+        if let Some(path) = join_path_ignoring_casing(workspace_root, dependency.as_str()) {
+            added.push(path.clone());
+            results.push(path)
+        } else {
+            warns.push(Missing(dependency));
+        }
+    }
+    added
+}
+
+fn add_m2_dependencies(
+    m2_root: &Path,
+    file_name: &str,
+    results: &mut Vec<PathBuf>,
 ) {
-    let wdl_file_name = get_wdl_file_name(&map_row);
-    let wdl_path = join_path_ignoring_casing(map_folder, &wdl_file_name);
-    if let Some(wdl_path) = wdl_path {
-        dependencies.push(wdl_path)
-    } else {
-        let msg = format!(
-            "WDL {} could not be found on the disk",
-            wdl_file_name
-        );
-        warns.push(ResolveMapAssetsCmdWarn::MISSING(msg));
+    let mut skin_it = 0;
+    loop {
+        let skin_file = m2_root.join(format!("{}0{}.skin", file_name, skin_it));
+        skin_it += 1;
+        if skin_file.exists() {
+            results.push(skin_file);
+        } else {
+            break;
+        }
     }
 }
 
-fn get_wdt_file(
-    map_folder: &Path,
-    map_dbc_row: &MapDbcRow,
-) -> R<PathBuf> {
-    let wdt_file_name = get_wdt_file_name(&map_dbc_row);
-    let path = join_path_ignoring_casing(map_folder, &wdt_file_name);
+// m2/mdx's are a bit "special"
+fn add_m2_type_wow_dep(
+    workspace_root: &Path,
+    wow_dependency_list: Vec<String>,
+    results: &mut Vec<PathBuf>,
+    warns: &mut Vec<ResolveMapAssetsCmdWarn>,
+) -> Vec<PathBuf> {
+    let mut added = Vec::new();
 
-    if let Some(path) = path {
-        Ok(path)
-    } else {
-        let msg = format!(
-            "{} WDT not found",
-            wdt_file_name
-        );
-        Err(msg.into())
+    fn on_found(
+        workspace_root: &Path,
+        path: PathBuf,
+        added: &mut Vec<PathBuf>,
+        results: &mut Vec<PathBuf>,
+        warns: &mut Vec<ResolveMapAssetsCmdWarn>,
+    ) {
+        added.push(path.clone());
+        results.push(path.clone());
+
+        if let Some(ext) = path.extension() {
+            if ext.eq("m2") || ext.eq("M2") {
+                // handle m2's.
+                if let Ok(m2_file) = M2File::from_path(path.clone()) {
+                    add_m2_type_wow_dep(workspace_root, m2_file.textures, results, warns);
+                    add_wow_dep(workspace_root, m2_file.replaceable_textures, results, warns);
+                    let file_stem = path
+                        .file_stem()
+                        .unwrap()
+                        .to_str()
+                        .expect("Failed to parse filename of a M2");
+                    let m2_root = path.parent()
+                        .unwrap();
+                    add_m2_dependencies(
+                        m2_root,
+                        file_stem,
+                        results,
+                    );
+                } else {
+                    let msg = format!("Failed to parse m2 '{}'", path.str());
+                    warns.push(ResolveMapAssetsCmdWarn::FileParseFail(msg));
+                }
+            } else if ext.eq("mdx") || ext.eq("MDX") {
+                if let Ok(mdx_file) = MdxFile::from_path(path.clone()) {
+                    add_m2_type_wow_dep(workspace_root, mdx_file.texs.texture_list, results, warns);
+                } else {
+                    let msg = format!("Failed to parse m2 '{}'", path.str());
+                    warns.push(ResolveMapAssetsCmdWarn::FileParseFail(msg));
+                }
+            }
+        }
     }
+
+    for dependency in wow_dependency_list {
+        if let Some(path) = join_path_ignoring_casing(workspace_root, dependency.as_str()) {
+            on_found(
+                workspace_root,
+                path,
+                &mut added,
+                results,
+                warns,
+            );
+        } else {
+            let mut found = false;
+
+            if dependency.ends_with("mdx") || dependency.ends_with("MDX") {
+                // retry, replacing extension to .m2
+                let dependency = dependency.replace(".mdx", ".m2")
+                    .replace(".MDX", ".M2");
+                if let Some(path) = join_path_ignoring_casing(workspace_root, dependency.as_str()) {
+                    found = true;
+                    on_found(
+                        workspace_root,
+                        path,
+                        &mut added,
+                        results,
+                        warns,
+                    );
+                }
+            } else if dependency.ends_with("m2") || dependency.ends_with("M2") {
+                // retry, replacing extension to .mdx
+                let dependency = dependency.replace(".M2", ".MDX")
+                    .replace(".m2", ".mdx");
+                if let Some(path) = join_path_ignoring_casing(workspace_root, dependency.as_str()) {
+                    found = true;
+                    on_found(
+                        workspace_root,
+                        path,
+                        &mut added,
+                        results,
+                        warns,
+                    );
+                }
+            }
+
+            if !found {
+                warns.push(Missing(dependency));
+            }
+        }
+    }
+
+
+    added
 }
-
-fn normalize_path(dep: &String) -> String {
-    dep
-        .replace(r"\", "/")
-        .to_uppercase()
-}
-
-fn get_wdt_file_name(map_row: &MapDbcRow) -> String {
-    let mut f_name = String::with_capacity(map_row.internal_name.len() + 4);
-    f_name.push_str(map_row.internal_name.as_str());
-    f_name.push_str(".wdt");
-    f_name
-}
-
-fn get_wdl_file_name(map_row: &MapDbcRow) -> String {
-    let mut f_name = String::with_capacity(map_row.internal_name.len() + 4);
-    f_name.push_str(map_row.internal_name.as_str());
-    f_name.push_str(".wdl");
-    f_name
-}
-
-fn find_file_by_extension<P: AsRef<Path>>(
-    path: P,
-    depth: usize,
-    extension: &str,
-) -> Vec<DirEntry> {
-    let extension = extension.to_string().to_uppercase();
-    find_file_by_predicate(path, depth, Box::new(move |entry| {
-        let curr_file_name = entry.file_name().to_str().unwrap().to_uppercase();
-        curr_file_name.ends_with(&extension)
-    }))
-}
-
-type FileFinderPredicate = dyn Fn(&DirEntry) -> bool;
-
 
 
 fn join_path_ignoring_casing(
     base: &Path,
-    join: &String,
+    join: &str,
 ) -> Option<PathBuf> {
-    let parts: Vec<&str> = join.split("/").collect();
+    let parts: Vec<&str> = join.split(&['/', '\\'][..]).collect();
     let mut buf = PathBuf::new();
-    buf.push(base);
+    buf.push(base.clone());
 
     for part in parts {
         let part = part.to_uppercase();
-        if let Some(read_dir) = read_dir(&buf).ok() {
+        if let Ok(read_dir) = read_dir(&buf) {
             let next = read_dir
                 .filter_map(|it| it.ok())
                 .find(|dir_entry| {
@@ -312,4 +378,68 @@ fn join_path_ignoring_casing(
     }
 
     Some(buf)
+}
+
+trait PathBufUtils {
+    fn str(&self) -> &str;
+}
+
+impl PathBufUtils for PathBuf {
+    fn str(&self) -> &str {
+        self.to_str().expect("Failed to convert PathBuf -> &str. Invalid FileSystem path characters?")
+    }
+}
+
+fn find_files_by_extension<P: AsRef<Path>>(
+    path: P,
+    depth: usize,
+    extension: &str,
+) -> Vec<DirEntry> {
+    let extension = extension.to_string().to_uppercase();
+    find_file_by_predicate(path, depth, Box::new(move |entry| {
+        let curr_file_name = entry.file_name().to_str().unwrap().to_uppercase();
+        curr_file_name.ends_with(&extension)
+    }))
+}
+
+type FileFinderPredicate = dyn Fn(&DirEntry) -> bool;
+
+fn find_file_by_predicate<P: AsRef<Path>>(
+    path: P,
+    depth: usize,
+    predicate: Box<FileFinderPredicate>,
+) -> Vec<DirEntry> {
+    let mut res = Vec::new();
+    for entry in WalkDir::new(path)
+        .max_depth(depth)
+        .into_iter()
+        .filter_map(|e| e.ok())
+    {
+        let metadata = entry.metadata();
+        if metadata.is_err() { continue; }
+        let metadata = metadata.unwrap();
+        if metadata.is_dir() { continue; }
+        if predicate.call((&entry, )) {
+            res.push(entry);
+        }
+    }
+    res
+}
+
+fn get_wdt_path(maps_folder: &PathBuf, map_row: &MapDbcRow) -> Option<PathBuf> {
+    let loc = maps_folder.join(format!("{0}/{0}.wdt", map_row.internal_name));
+    if loc.exists() {
+        Some(loc)
+    } else {
+        None
+    }
+}
+
+fn get_wdl_path(maps_folder: &PathBuf, map_row: &MapDbcRow) -> Option<PathBuf> {
+    let loc = maps_folder.join(format!("{0}/{0}.wdl", map_row.internal_name));
+    if loc.exists() {
+        Some(loc)
+    } else {
+        None
+    }
 }
