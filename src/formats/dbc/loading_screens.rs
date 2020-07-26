@@ -5,10 +5,10 @@ use crate::common::R;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LoadingScreenDbcRow {
-    id: u32,
-    name: String,
-    path: String,
-    has_wide_screen: bool,
+    pub id: u32,
+    pub name: String,
+    pub path: String,
+    pub has_wide_screen: bool,
 }
 
 

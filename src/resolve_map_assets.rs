@@ -1,9 +1,9 @@
 use std::path::{PathBuf, Path};
 use crate::common::{R, err};
 use serde::{Serialize, Deserialize};
-use crate::resolve_map_assets::ResolveMapAssetsCmdWarn::Missing;
+use crate::resolve_map_assets::ResolveMapAssetsCmdWarn::{Missing, MissingDbcEntry};
 use std::fs::read_dir;
-use crate::formats::dbc::dbc::load_map_dbc_from_path;
+use crate::formats::dbc::dbc::{load_map_dbc_from_path, load_loading_screens_dbc_from_path};
 use crate::formats::dbc::map::MapDbcRow;
 use walkdir::{DirEntry, WalkDir};
 use crate::formats::adt::AdtFile;
@@ -19,6 +19,7 @@ pub enum ResolveMapAssetsCmdWarn {
     Missing(String),
     FileParseFail(String),
     FailedToRemoveFile(String),
+    MissingDbcEntry(String),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -119,11 +120,15 @@ pub fn resolve_map_assets(
         prune_workspace(workspace_path, &results, &mut warns);
     }
 
+    find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results, &mut warns);
+
+
     Ok(ResolveMapAssetsCmdResult {
         warns,
         results,
     })
 }
+
 
 fn find_and_add_tileset_blps(
     results: &mut Vec<PathBuf>,
@@ -344,6 +349,34 @@ fn add_m2_type_wow_dep(
 
 
     added
+}
+
+fn find_and_add_loading_screen_blp(
+    workspace_path: &Path,
+    map_dbc: &MapDbcRow,
+    mut results: &mut Vec<PathBuf>,
+    mut warns: &mut Vec<ResolveMapAssetsCmdWarn>,
+) {
+    if let Some(loading_screen_dbc_path) = join_path_ignoring_casing(workspace_path, "DBFilesClient/LoadingScreens.dbc") {
+        let loading_screens_dbc = load_loading_screens_dbc_from_path(loading_screen_dbc_path.str())
+            .expect("LoadingScreens.dbc parse error");
+        if let Some(loading_screen_dbc_row) = loading_screens_dbc
+            .rows
+            .iter()
+            .find(|row| row.id == map_dbc.loading_screen_ref_id)
+        {
+            add_wow_dep(
+                workspace_path,
+                vec![loading_screen_dbc_row.path.clone()],
+                &mut results,
+                &mut warns,
+            );
+        } else {
+            warns.push(MissingDbcEntry(format!("DBFilesClient/LoadingScreens.dbc  map_dbc.loading_screen_ref_id = {}", map_dbc.loading_screen_ref_id)))
+        }
+    } else {
+        warns.push(Missing("DBFilesClient/LoadingScreens.dbc".to_string()));
+    }
 }
 
 
