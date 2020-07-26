@@ -12,6 +12,7 @@ const GROUP_FILE_CHUNKS: &[&str] = &["MOGP", "MOPY", "MOVI", "MONR", "MOTV"];
 pub struct WmoFile {
     pub root: WmoRootFile,
     pub groups: Vec<WmoGroupFile>,
+    pub loaded_group_files: Vec<PathBuf>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -76,9 +77,13 @@ impl WmoFile {
                 let parent_dir = Path::new(path).parent().unwrap();
                 let original_file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
 
-                let groups = WmoFile::get_groups(parent_dir, original_file_name, &root_file);
+                let (groups, loaded_group_files) = WmoFile::get_groups(parent_dir, original_file_name, &root_file);
 
-                Ok(WmoFile { root: root_file, groups })
+                Ok(WmoFile {
+                    root: root_file,
+                    groups,
+                    loaded_group_files,
+                })
             }
             WmoFileVariant::GROUP(_) => {
                 Err("WmoFile#from_path: Given WMO must a be root type WMO.".into())
@@ -90,17 +95,22 @@ impl WmoFile {
         parent_path: &Path,
         original_file_name: &str,
         root_file: &WmoRootFile,
-    ) -> Vec<WmoGroupFile> {
+    ) -> (Vec<WmoGroupFile>, Vec<PathBuf>) {
         let group_names = WmoRootFile::get_group_names(root_file.mohd.n_groups, original_file_name);
-        group_names.iter()
+        let mut loaded_group_paths = Vec::new();
+
+        let groups = group_names.iter()
             .map(|group_name| {
                 let mut b = PathBuf::new();
                 b.push(parent_path);
                 b.push(group_name);
-                Self::load_group_wmo(b.to_str().unwrap())
-                    .expect("Failed to load group WMO")
+                let wmo_group_file = Self::load_group_wmo(b.to_str().unwrap())
+                    .expect("Failed to load group WMO");
+                loaded_group_paths.push(b);
+                wmo_group_file
             })
-            .collect()
+            .collect();
+        (groups, loaded_group_paths)
     }
 
     fn load_group_wmo(path: &str) -> R<WmoGroupFile> {

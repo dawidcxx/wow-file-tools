@@ -9,10 +9,16 @@ use walkdir::{DirEntry, WalkDir};
 use crate::formats::adt::AdtFile;
 use crate::formats::wmo::WmoFile;
 use crate::formats::m2::M2File;
+use std::collections::HashSet;
+use std::iter::FromIterator;
+use std::fs;
+use crate::formats::mdx::MdxFile;
+use std::ffi::OsStr;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ResolveMapAssetsCmdWarn {
     MISSING(String),
+    PARSE(String),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -99,14 +105,100 @@ pub fn resolve_map_assets(
                 &mut results,
                 &mut warns,
             );
+
+            results.append(wmo.loaded_group_files.clone().as_mut())
         }
     }
 
+    find_and_add_tileset_blps(
+        &mut results,
+    );
+
+    prune_garbage(workspace_path, &results);
 
     Ok(ResolveMapAssetsCmdResult {
         warns,
         results,
     })
+}
+
+fn find_and_add_tileset_blps(
+    results: &mut Vec<PathBuf>,
+) {
+    fn try_find_blp_s_dep(
+        blp_root: &Path,
+        file_name: &str,
+    ) -> Option<PathBuf> {
+        let lower_case = blp_root.join(format!("{}_s.blp", file_name));
+        if lower_case.exists() {
+            return Some(lower_case);
+        }
+        let upper_case = blp_root.join(format!("{}_s.BLP", file_name));
+        if upper_case.exists() {
+            return Some(upper_case);
+        }
+        return None;
+    }
+
+    let mut builder = Vec::new();
+
+    for blp_dependency in results
+        .iter()
+        .filter_map(|dependency| dependency.extension()
+            .map(|ext| (dependency, ext)))
+        .filter(|(dependency, ext)| (*ext).eq("blp") || (*ext).eq("BLP"))
+        .map(|(dependency, ext)| dependency)
+    {
+        let blp_dependency_str = blp_dependency.str();
+
+        if !blp_dependency_str.to_uppercase().contains("TILESET") {
+            // Only TILESET's exhibit this weird behavior.
+            continue;
+        }
+
+        let blp_root = blp_dependency.parent()
+            .expect("Expected BLP file to have a parent");
+        let file_name = blp_dependency.file_name()
+            .expect("Expected BLP file to have a filename")
+            .to_str()
+            .expect("BLP filename parse error")
+            .split(".")
+            .nth(0)
+            .expect("BLP filename parse error");
+
+        if let Some(blp_s) = try_find_blp_s_dep(blp_root, file_name) {
+            builder.push(blp_s);
+        }
+    }
+    results.append(&mut builder);
+}
+
+fn prune_garbage(
+    workspace_root: &Path,
+    dependencies: &Vec<PathBuf>,
+) {
+    let dep_cache: HashSet<PathBuf> = HashSet::from_iter(dependencies
+        .iter()
+        .map(|it| {
+            fs::canonicalize(it).unwrap()
+        })
+    );
+
+    for entry in WalkDir::new(workspace_root)
+        .into_iter()
+        .filter_map(|e| e.ok()) {
+        if entry.metadata().unwrap().is_dir() {
+            // ignore dirs
+            continue;
+        }
+
+        let path = fs::canonicalize(entry.path()).unwrap();
+
+        if !dep_cache.contains(&path) {
+            // println!("To be trashed: {:?}", path);
+            fs::remove_file(path);
+        }
+    }
 }
 
 fn add_wow_dep(
@@ -127,6 +219,22 @@ fn add_wow_dep(
     added
 }
 
+fn add_m2_dependencies(
+    m2_root: &Path,
+    file_name: &str,
+    results: &mut Vec<PathBuf>,
+) {
+    let mut skin_it = 0;
+    loop {
+        let skin_file = m2_root.join(format!("{}0{}.skin", file_name, skin_it));
+        skin_it += 1;
+        if skin_file.exists() {
+            results.push(skin_file);
+        } else {
+            break;
+        }
+    }
+}
 
 // m2/mdx's are a bit "special"
 fn add_m2_type_wow_dep(
@@ -138,18 +246,57 @@ fn add_m2_type_wow_dep(
     let mut added = Vec::new();
 
     fn on_found(
+        workspace_root: &Path,
         path: PathBuf,
         added: &mut Vec<PathBuf>,
         results: &mut Vec<PathBuf>,
+        warns: &mut Vec<ResolveMapAssetsCmdWarn>,
     ) {
         added.push(path.clone());
         results.push(path.clone());
 
+        if let Some(ext) = path.extension() {
+            if ext.eq("m2") || ext.eq("M2") {
+                // handle m2's.
+                if let Ok(m2_file) = M2File::from_path(path.clone()) {
+                    add_m2_type_wow_dep(workspace_root, m2_file.textures, results, warns);
+                    add_wow_dep(workspace_root, m2_file.replaceable_textures, results, warns);
+                    let file_stem = path
+                        .file_stem()
+                        .unwrap()
+                        .to_str()
+                        .expect("Failed to parse filename of a M2");
+                    let m2_root = path.parent()
+                        .unwrap();
+                    add_m2_dependencies(
+                        m2_root,
+                        file_stem,
+                        results,
+                    );
+                } else {
+                    let msg = format!("Failed to parse m2 '{}'", path.str());
+                    warns.push(ResolveMapAssetsCmdWarn::PARSE(msg));
+                }
+            } else if ext.eq("mdx") || ext.eq("MDX") {
+                if let Ok(mdx_file) = MdxFile::from_path(path.clone()) {
+                    add_m2_type_wow_dep(workspace_root, mdx_file.texs.texture_list, results, warns);
+                } else {
+                    let msg = format!("Failed to parse m2 '{}'", path.str());
+                    warns.push(ResolveMapAssetsCmdWarn::PARSE(msg));
+                }
+            }
+        }
     }
 
     for dependency in wow_dependency_list {
         if let Some(path) = join_path_ignoring_casing(workspace_root, dependency.as_str()) {
-            on_found(path, &mut added, results);
+            on_found(
+                workspace_root,
+                path,
+                &mut added,
+                results,
+                warns,
+            );
         } else {
             let mut found = false;
 
@@ -159,7 +306,13 @@ fn add_m2_type_wow_dep(
                     .replace(".MDX", ".M2");
                 if let Some(path) = join_path_ignoring_casing(workspace_root, dependency.as_str()) {
                     found = true;
-                    on_found(path, &mut added, results);
+                    on_found(
+                        workspace_root,
+                        path,
+                        &mut added,
+                        results,
+                        warns,
+                    );
                 }
             } else if dependency.ends_with("m2") || dependency.ends_with("M2") {
                 // retry, replacing extension to .mdx
@@ -167,7 +320,13 @@ fn add_m2_type_wow_dep(
                     .replace(".m2", ".mdx");
                 if let Some(path) = join_path_ignoring_casing(workspace_root, dependency.as_str()) {
                     found = true;
-                    on_found(path, &mut added, results);
+                    on_found(
+                        workspace_root,
+                        path,
+                        &mut added,
+                        results,
+                        warns,
+                    );
                 }
             }
 
