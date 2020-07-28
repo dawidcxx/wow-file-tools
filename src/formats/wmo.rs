@@ -69,7 +69,7 @@ pub struct WmoGroupFile {
 impl WmoFile {
     pub fn from_path(path: &str) -> R<WmoFile> {
         let chunks = Chunk::from_path(path)?;
-        let variant = WmoFileVariant::new(chunks);
+        let variant = WmoFileVariant::new(chunks)?;
         match variant {
             WmoFileVariant::ROOT(root_file) => {
                 // ok we have a root file,
@@ -104,23 +104,29 @@ impl WmoFile {
                 let mut b = PathBuf::new();
                 b.push(parent_path);
                 b.push(group_name);
+
                 let wmo_group_file = Self::load_group_wmo(b.to_str().unwrap())
-                    .expect("Failed to load group WMO");
-                loaded_group_paths.push(b);
+                    .expect(format!("Failed to load group WMO {:?}", b).as_str());
+
+                // let wmo_group_file = Self::load_group_wmo(b.to_str().unwrap());
+                // if wmo_group_file.is_ok() {
+                    loaded_group_paths.push(b);
+                // }
                 wmo_group_file
             })
+            // .filter_map(|g| g.ok())
             .collect();
         (groups, loaded_group_paths)
     }
 
     fn load_group_wmo(path: &str) -> R<WmoGroupFile> {
         let chunks = Chunk::from_path(path)?;
-        Ok(WmoGroupFile::new(chunks))
+        WmoGroupFile::new(chunks)
     }
 }
 
 impl WmoFileVariant {
-    fn new(chunks: Vec<Chunk>) -> WmoFileVariant {
+    fn new(chunks: Vec<Chunk>) -> R<WmoFileVariant> {
         fn matches_file_type(marker_chunks: &[&str], lookup: &HashSet<String>) -> bool {
             marker_chunks
                 .iter()
@@ -134,9 +140,9 @@ impl WmoFileVariant {
             .collect();
 
         if matches_file_type(ROOT_FILE_CHUNKS, &chunk_names_lookup) {
-            WmoFileVariant::ROOT(WmoRootFile::new(chunks))
+            Ok(WmoFileVariant::ROOT(WmoRootFile::new(chunks)?))
         } else if matches_file_type(GROUP_FILE_CHUNKS, &chunk_names_lookup) {
-            WmoFileVariant::GROUP(WmoGroupFile::new(chunks))
+            Ok(WmoFileVariant::GROUP(WmoGroupFile::new(chunks)?))
         } else {
             panic!("WmoFile#new: Cannot create a root or group WMO from given chunks!")
         }
@@ -170,15 +176,15 @@ impl WmoRootFile {
             .collect()
     }
 
-    fn new(chunks: Vec<Chunk>) -> WmoRootFile {
-        let mver = chunks.get_mver_chunk();
+    fn new(chunks: Vec<Chunk>) -> R<WmoRootFile> {
+        let mver = chunks.get_mver_chunk()?;
         let motx = chunks.get_motx();
         let mohd = chunks.get_mohd();
         let mogn = chunks.get_mogn();
         let modn = chunks.get_modn();
         let mogi = chunks.get_mogi();
 
-        WmoRootFile {
+        Ok(WmoRootFile {
             mver,
             motx,
             mohd,
@@ -196,14 +202,14 @@ impl WmoRootFile {
             modn,
             modd: (),
             mfog: (),
-        }
+        })
     }
 }
 
 impl WmoGroupFile {
-    fn new(chunks: Vec<Chunk>) -> WmoGroupFile {
-        let mver = chunks.get_mver_chunk();
-        WmoGroupFile {
+    fn new(chunks: Vec<Chunk>) -> R<WmoGroupFile> {
+        let mver = chunks.get_mver_chunk()?;
+        Ok(WmoGroupFile {
             mver,
             mogp: (),
             mopy: (),
@@ -224,7 +230,7 @@ impl WmoGroupFile {
             mliq: None,
             mori: None,
             morb: None,
-        }
+        })
     }
 }
 

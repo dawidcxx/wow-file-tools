@@ -1,7 +1,7 @@
 use std::path::{PathBuf, Path};
 use crate::common::{R, err};
 use serde::{Serialize, Deserialize};
-use crate::resolve_map_assets::ResolveMapAssetsCmdWarn::{Missing, MissingDbcEntry};
+use crate::resolve_map_assets::ResolveMapAssetsCmdWarn::{Missing, MissingDbcEntry, AdtParseErr};
 use std::fs::read_dir;
 use crate::formats::dbc::dbc::{load_map_dbc_from_path, load_loading_screens_dbc_from_path};
 use crate::formats::dbc::map::MapDbcRow;
@@ -19,6 +19,7 @@ pub enum ResolveMapAssetsCmdWarn {
     Missing(String),
     FileParseFail(String),
     FailedToRemoveFile(String),
+    AdtParseErr(PathBuf),
     MissingDbcEntry(String),
 }
 
@@ -54,7 +55,7 @@ pub fn resolve_map_assets(
 
     let maps_folder = join_path_ignoring_casing(
         workspace_path,
-        "World/Maps",
+        format!("World/Maps/{}", map_row.internal_name).as_str(),
     ).ok_or("Missing World/Maps folder in workspace")?;
 
     // to(maybe)do: these could be a warning.
@@ -70,7 +71,14 @@ pub fn resolve_map_assets(
         let adt_path = adt_entry.into_path();
         results.push(adt_path.clone());
 
-        let adt = AdtFile::from_path(adt_path)?;
+        let adt = AdtFile::from_path(adt_path.clone());
+
+        if adt.is_err() {
+            warns.push(AdtParseErr(adt_path.clone()));
+            break;
+        }
+
+        let adt = adt.unwrap();
 
         add_wow_dep(
             workspace_path,
@@ -116,11 +124,12 @@ pub fn resolve_map_assets(
         &mut results,
     );
 
+
+    find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results, &mut warns);
+
     if should_prune_workspace {
         prune_workspace(workspace_path, &results, &mut warns);
     }
-
-    find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results, &mut warns);
 
 
     Ok(ResolveMapAssetsCmdResult {
@@ -203,7 +212,7 @@ fn prune_workspace(
             .expect("Invalid path encountered");
 
         if !dependency_lookup.contains(&workspace_file) {
-            // println!("To be trashed: {:?}", path);
+            // println!("To be trashed: {:?}", workspace_file);
             if let Err(e) = fs::remove_file(&workspace_file) {
                 let msg = format!("Failed to delete '{}' reason: '{}'", workspace_file.str(), e);
                 warns.push(ResolveMapAssetsCmdWarn::FailedToRemoveFile(msg));
@@ -460,19 +469,15 @@ fn find_file_by_predicate<P: AsRef<Path>>(
 }
 
 fn get_wdt_path(maps_folder: &PathBuf, map_row: &MapDbcRow) -> Option<PathBuf> {
-    let loc = maps_folder.join(format!("{0}/{0}.wdt", map_row.internal_name));
-    if loc.exists() {
-        Some(loc)
-    } else {
-        None
-    }
+    join_path_ignoring_casing(
+        maps_folder,
+        format!("{0}.wdt", map_row.internal_name).as_str(),
+    )
 }
 
 fn get_wdl_path(maps_folder: &PathBuf, map_row: &MapDbcRow) -> Option<PathBuf> {
-    let loc = maps_folder.join(format!("{0}/{0}.wdl", map_row.internal_name));
-    if loc.exists() {
-        Some(loc)
-    } else {
-        None
-    }
+    join_path_ignoring_casing(
+        maps_folder,
+        format!("{0}.wdl", map_row.internal_name).as_str(),
+    )
 }

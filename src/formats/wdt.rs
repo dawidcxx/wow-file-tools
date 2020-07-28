@@ -15,21 +15,21 @@ pub struct WdtFile {
 impl WdtFile {
     pub fn from_path<P: AsRef<Path>>(path: P) -> R<WdtFile> {
         let chunks = Chunk::from_path(path)?;
-        Ok(WdtFile::new(chunks))
+        WdtFile::new(chunks)
     }
 
-    fn new(chunks: Vec<Chunk>) -> WdtFile {
-        let mver = chunks.get_mver_chunk();
+    fn new(chunks: Vec<Chunk>) -> R<WdtFile> {
+        let mver = chunks.get_mver_chunk()?;
         let mphd = chunks.get_mphd_chunk();
         let main = chunks.get_main();
         let mwmo = chunks.get_mwmo();
         let modf = chunks.get_modf();
-        WdtFile {
+        Ok(WdtFile {
             mver,
             mphd,
             main,
             mwmo,
             modf,
-        }
+        })
     }
 }

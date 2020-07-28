@@ -19,11 +19,11 @@ pub struct AdtFile {
 impl AdtFile {
     pub fn from_path<P: AsRef<Path>>(path: P) -> R<AdtFile> {
         let chunks = Chunk::from_path(path)?;
-        Ok(AdtFile::new(chunks))
+        AdtFile::new(chunks)
     }
 
-    fn new(chunks: Vec<Chunk>) -> AdtFile {
-        let mver = chunks.get_mver_chunk();
+    fn new(chunks: Vec<Chunk>) -> R<AdtFile> {
+        let mver = chunks.get_mver_chunk()?;
         let mhdr = chunks.get_mhdr();
         let mcin = chunks.get_mcin();
         let mtex = chunks.get_mtex();
@@ -32,7 +32,7 @@ impl AdtFile {
         let mwmo = chunks.get_mwmo();
         let mwid = chunks.get_mwid();
         let mddf = chunks.get_mddf();
-        AdtFile {
+        Ok(AdtFile {
             mver,
             mhdr,
             mcin,
@@ -42,6 +42,6 @@ impl AdtFile {
             mwmo,
             mwid,
             mddf,
-        }
+        })
     }
 }

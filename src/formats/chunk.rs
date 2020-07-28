@@ -4,7 +4,7 @@ use std::io::Read;
 use crate::byte_utils::*;
 use std::convert::TryInto;
 use serde::{Serialize, Deserialize};
-use crate::common::R;
+use crate::common::{R, err};
 use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -25,8 +25,12 @@ impl Chunk {
 
         let mut offset: usize = 0;
         let mut builder: Vec<Chunk> = Vec::new();
+        let max_size = buffered_file.len();
 
         loop {
+            if offset + 4 > max_size {
+                break;
+            }
             let id: [u8; 4] = buffered_file[offset..offset + 4].try_into()?;
             let size = Chunk::get_chunk_size(&id, &buffered_file, offset)?;
             let data = buffered_file[offset + 8..offset + 8 + size].to_vec();
@@ -91,7 +95,8 @@ impl Chunk {
 pub trait ChunkVecUtils {
     fn get_chunk_of_type_optionally(&self, chunk_type: &str) -> Option<&Chunk>;
     fn get_chunk_of_type(&self, chunk_type: &str) -> &Chunk;
-    fn get_mver_chunk(&self) -> ChunkMver;
+    fn get_chunk_of_type_checked(&self, chunk_type: &str) -> R<&Chunk>;
+    fn get_mver_chunk(&self) -> R<ChunkMver>;
     fn get_mphd_chunk(&self) -> ChunkMphd;
     fn get_main(&self) -> ChunkMain;
     fn get_modf(&self) -> Option<ChunkModf>;
@@ -115,11 +120,18 @@ impl ChunkVecUtils for Vec<Chunk> {
     }
 
     fn get_chunk_of_type(&self, chunk_type: &str) -> &Chunk {
-        self.get_chunk_of_type_optionally(chunk_type).unwrap()
+        self.get_chunk_of_type_optionally(chunk_type)
+            .expect(format!("Failed to find chunk of type {}", chunk_type).as_str())
     }
 
-    fn get_mver_chunk(&self) -> ChunkMver {
-        ChunkMver::from_chunk(self.get_chunk_of_type("MVER"))
+    fn get_chunk_of_type_checked(&self, chunk_type: &str) -> R<&Chunk> {
+        self.get_chunk_of_type_optionally(chunk_type)
+            .ok_or(format!("Failed to find chunk of type {}", chunk_type).into())
+    }
+
+    fn get_mver_chunk(&self) -> R<ChunkMver> {
+        let chunk = self.get_chunk_of_type_checked("MVER")?;
+        ChunkMver::from_chunk(chunk)
     }
 
     fn get_mphd_chunk(&self) -> ChunkMphd {
@@ -163,12 +175,15 @@ pub struct ChunkMver {
 }
 
 impl ChunkMver {
-    pub fn from_chunk(chunk: &Chunk) -> ChunkMver {
+    pub fn from_chunk(chunk: &Chunk) -> R<ChunkMver> {
         assert_eq!(chunk.get_id_as_string(), "MVER");
         assert_eq!(chunk.size, 4);
-        ChunkMver {
-            map_version: chunk.data.get_u32(0).unwrap()
-        }
+        let map_version = chunk.data.get_u32(0);
+        map_version.map(|map_version|
+            ChunkMver {
+                map_version,
+            }
+        )
     }
 }
 
@@ -459,7 +474,7 @@ impl ChunkMogn {
     pub fn from_chunk(c: &Chunk) -> ChunkMogn {
         assert_eq!(c.get_id_as_string(), "MOGN");
         let strings = c.data.get_null_terminated_strings()
-            .unwrap()
+            .unwrap_or(vec![])
             .into_iter()
             .filter(|it| !it.is_empty())
             .collect();
@@ -474,7 +489,7 @@ impl ChunkModn {
     pub fn from_chunk(c: &Chunk) -> ChunkModn {
         assert_eq!(c.get_id_as_string(), "MODN");
         let strings = c.data.get_null_terminated_strings()
-            .unwrap()
+            .unwrap_or(vec![])
             .into_iter()
             .filter(|it| !it.is_empty())
             .collect();
