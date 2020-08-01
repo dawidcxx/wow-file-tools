@@ -4,7 +4,7 @@ use std::io::Read;
 use crate::byte_utils::*;
 use std::convert::TryInto;
 use serde::{Serialize, Deserialize};
-use crate::common::{R, err};
+use crate::common::{R};
 use std::path::Path;
 
 #[derive(Debug, Serialize, Deserialize)]

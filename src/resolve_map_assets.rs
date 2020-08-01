@@ -280,7 +280,6 @@ fn add_m2_type_wow_dep(
                 // handle m2's.
                 if let Ok(m2_file) = M2File::from_path(path.clone()) {
                     add_m2_type_wow_dep(workspace_root, m2_file.textures, results, warns);
-                    add_wow_dep(workspace_root, m2_file.replaceable_textures, results, warns);
                     let file_stem = path
                         .file_stem()
                         .unwrap()
