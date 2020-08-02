@@ -15,7 +15,6 @@ use std::fs;
 use crate::formats::mdx::MdxFile;
 use crate::formats::wdl::WdlFile;
 use std::io::{BufReader, BufRead};
-use pathdiff::diff_paths;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ResolveMapAssetsCmdWarn {
@@ -37,7 +36,6 @@ pub fn resolve_map_assets(
     workspace_path: &Path,
     map_id: u32,
     should_prune_workspace: bool,
-    should_make_result_paths_absolute: bool,
 ) -> R<ResolveMapAssetsCmdResult> {
     if !workspace_path.exists() {
         return err(format!("Error: workspace '{:?}' not found on the file system.", workspace_path));
@@ -142,19 +140,11 @@ pub fn resolve_map_assets(
 
     find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results_builder, &mut warns);
 
-    let absolute_workspace = workspace_path.canonicalize().unwrap();
-
     let results: HashSet<PathBuf> = HashSet::from_iter(results_builder
         .iter()
         .map(|it| {
-            let absolute = fs::canonicalize(it)
-                .expect("Invalid path encountered");
-            if !should_make_result_paths_absolute {
-                diff_paths(absolute, &absolute_workspace)
-                    .unwrap()
-            } else {
-                absolute
-            }
+            fs::canonicalize(it)
+                .expect("Invalid path encountered")
         })
     );
 
