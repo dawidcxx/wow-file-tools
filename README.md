@@ -2,47 +2,7 @@
 
 # About
 
-> `./wow-file-tools --help`
-
-```
-wow-file-tools 1.0
-ArenaCraft
-
-USAGE:
-    wow-file-tools <SUBCOMMAND>
-
-FLAGS:
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-SUBCOMMANDS:
-    help    Prints this message or the help of the given subcommand(s)
-    view    
-```
-
-> `./wow-file-tools view --help`
-
-```
-wow-file-tools-view 
-
-USAGE:
-    wow-file-tools view [FLAGS] --file <file>
-
-FLAGS:
-    -c, --compact    Output JSON will no longer be pretty printed
-    -h, --help       Prints help information
-    -V, --version    Prints version information
-
-OPTIONS:
-    -f, --file <file>    
-
-```
-
-example command:
-
-`./wow-file-tools view --compact -f ./mpq/TolVirArena_29_51.adt`
-
-If you want to try out, check out the [releases](https://github.com/arenacraftwow/wow-file-tools/releases) tab and grab the latest one.
+CLI utility used @ [ArenaCraft](https://github.com/arenacraftwow). Mostly for manipulating client side files.
 
 # Features
 
@@ -67,7 +27,18 @@ The `view` command will dump the conversion of the binary file into JSON. Suppor
 - ### Resolve Map assets
 
 The `resolve-map-assets` command will, for a given `map-id` output all the maps dependencies. The `map-id` referes to a entry in `Map.dbc`. 
-A `workspace` will be required, which is simply a folder of extracted WoW assets. 
+
+```
+FLAGS:
+    -h, --help                          Prints help information
+    -a, --make-result-paths-absolute    
+    -p, --prune-unused                  Remove unneeded files within the workspace
+    -V, --version                       Prints version information
+
+OPTIONS:
+    -m, --map-id <map-id>          
+    -w, --workspace <workspace>    
+```
 
 # Compiling
 
