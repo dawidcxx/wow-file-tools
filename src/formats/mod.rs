@@ -1,3 +1,4 @@
+pub mod wdl;
 pub mod chunk;
 pub mod wdt;
 pub mod adt;

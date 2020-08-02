@@ -2,7 +2,7 @@ use std::path::{PathBuf, Path};
 use crate::common::{R, err};
 use serde::{Serialize, Deserialize};
 use crate::resolve_map_assets::ResolveMapAssetsCmdWarn::{Missing, MissingDbcEntry, AdtParseErr};
-use std::fs::read_dir;
+use std::fs::{read_dir, File};
 use crate::formats::dbc::dbc::{load_map_dbc_from_path, load_loading_screens_dbc_from_path};
 use crate::formats::dbc::map::MapDbcRow;
 use walkdir::{DirEntry, WalkDir};
@@ -13,6 +13,9 @@ use std::collections::HashSet;
 use std::iter::FromIterator;
 use std::fs;
 use crate::formats::mdx::MdxFile;
+use crate::formats::wdl::WdlFile;
+use std::io::{BufReader, BufRead};
+use pathdiff::diff_paths;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ResolveMapAssetsCmdWarn {
@@ -21,24 +24,26 @@ pub enum ResolveMapAssetsCmdWarn {
     FailedToRemoveFile(String),
     AdtParseErr(PathBuf),
     MissingDbcEntry(String),
+    MissingMiniMapFolder,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ResolveMapAssetsCmdResult {
     pub warns: Vec<ResolveMapAssetsCmdWarn>,
-    pub results: Vec<PathBuf>,
+    pub results: HashSet<PathBuf>,
 }
 
 pub fn resolve_map_assets(
     workspace_path: &Path,
     map_id: u32,
     should_prune_workspace: bool,
+    should_make_result_paths_absolute: bool,
 ) -> R<ResolveMapAssetsCmdResult> {
     if !workspace_path.exists() {
         return err(format!("Error: workspace '{:?}' not found on the file system.", workspace_path));
     }
 
-    let mut results = Vec::new();
+    let mut results_builder = Vec::new();
     let mut warns: Vec<ResolveMapAssetsCmdWarn> = Vec::new();
 
     let map_dbc_loc = join_path_ignoring_casing(workspace_path, "DBFilesClient/Map.dbc")
@@ -51,7 +56,7 @@ pub fn resolve_map_assets(
         .find(|map| map.id == map_id)
         .ok_or(format!("Map with id {} not found", map_id))?;
 
-    results.push(map_dbc_loc);
+    results_builder.push(map_dbc_loc);
 
     let maps_folder = join_path_ignoring_casing(
         workspace_path,
@@ -64,12 +69,16 @@ pub fn resolve_map_assets(
     let wdl_file_path = get_wdl_path(&maps_folder, map_row)
         .ok_or("Missing Map WDL file")?;
 
-    results.push(wdl_file_path);
-    results.push(wdt_file_path);
+    let wdl = WdlFile::from_path(&wdl_file_path)?;
+
+    add_wow_dep(workspace_path, wdl.mwmo.0, &mut results_builder, &mut warns);
+
+    results_builder.push(wdl_file_path);
+    results_builder.push(wdt_file_path);
 
     for adt_entry in find_files_by_extension(maps_folder, 2, ".adt") {
         let adt_path = adt_entry.into_path();
-        results.push(adt_path.clone());
+        results_builder.push(adt_path.clone());
 
         let adt = AdtFile::from_path(adt_path.clone());
 
@@ -83,21 +92,21 @@ pub fn resolve_map_assets(
         add_wow_dep(
             workspace_path,
             adt.mtex.0,
-            &mut results,
+            &mut results_builder,
             &mut warns,
         );
 
         let added_wmos = add_wow_dep(
             workspace_path,
             adt.mwmo.0,
-            &mut results,
+            &mut results_builder,
             &mut warns,
         );
 
         add_m2_type_wow_dep(
             workspace_path,
             adt.mmdx.0,
-            &mut results,
+            &mut results_builder,
             &mut warns,
         );
 
@@ -106,31 +115,52 @@ pub fn resolve_map_assets(
             add_wow_dep(
                 workspace_path,
                 wmo.root.motx.0,
-                &mut results,
+                &mut results_builder,
                 &mut warns,
             );
             add_m2_type_wow_dep(
                 workspace_path,
                 wmo.root.modn.0,
-                &mut results,
+                &mut results_builder,
                 &mut warns,
             );
 
-            results.append(wmo.loaded_group_files.clone().as_mut())
+            results_builder.append(wmo.loaded_group_files.clone().as_mut())
         }
     }
 
     find_and_add_tileset_blps(
-        &mut results,
+        &mut results_builder,
     );
 
+    find_and_add_minimap_blps(
+        &workspace_path,
+        map_row,
+        &mut results_builder,
+        &mut warns,
+    );
 
-    find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results, &mut warns);
+    find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results_builder, &mut warns);
+
+    let absolute_workspace = workspace_path.canonicalize().unwrap();
+
+    let results: HashSet<PathBuf> = HashSet::from_iter(results_builder
+        .iter()
+        .map(|it| {
+            let absolute = fs::canonicalize(it)
+                .expect("Invalid path encountered");
+            if !should_make_result_paths_absolute {
+                diff_paths(absolute, &absolute_workspace)
+                    .unwrap()
+            } else {
+                absolute
+            }
+        })
+    );
 
     if should_prune_workspace {
         prune_workspace(workspace_path, &results, &mut warns);
     }
-
 
     Ok(ResolveMapAssetsCmdResult {
         warns,
@@ -138,6 +168,59 @@ pub fn resolve_map_assets(
     })
 }
 
+fn find_and_add_minimap_blps(
+    workspace_root: &Path,
+    map_ref: &MapDbcRow,
+    results: &mut Vec<PathBuf>,
+    warns: &mut Vec<ResolveMapAssetsCmdWarn>,
+) {
+    let mini_map_folder = match join_path_ignoring_casing(workspace_root, "TILESET/Textures/Minimap") {
+        None => {
+            warns.push(ResolveMapAssetsCmdWarn::MissingMiniMapFolder);
+            return;
+        }
+        Some(f) => f,
+    };
+
+    let md5_translate_file = match join_path_ignoring_casing(mini_map_folder.as_ref(), "md5translate.trs") {
+        None => {
+            warns.push(ResolveMapAssetsCmdWarn::Missing("TILESET/Textures/Minimap/md5translate.trs".to_string()));
+            return;
+        }
+        Some(f) => f,
+    };
+
+    let md5_translate_file = match File::open(md5_translate_file) {
+        Ok(f) => f,
+        Err(err) => {
+            warns.push(ResolveMapAssetsCmdWarn::FileParseFail(format!("Failed to parse 'md5translate.trs' reason: {}", err)));
+            return;
+        }
+    };
+
+    for line in BufReader::new(md5_translate_file)
+        .lines()
+        .filter_map(|it| it.ok()) {
+        if line.starts_with(&map_ref.internal_name) {
+            let blp = match line.split("\t").last() {
+                None => {
+                    warns.push(ResolveMapAssetsCmdWarn::FileParseFail(format!(
+                        "'md5translate.trs' failed to parse line: {} ",
+                        line
+                    )));
+                    continue;
+                }
+                Some(l) => l
+            };
+
+            if let Some(blp_path) = join_path_ignoring_casing(mini_map_folder.as_ref(), blp) {
+                results.push(blp_path);
+            } else {
+                warns.push(Missing(format!("TILESET/Textures/Minimap/{}", blp)))
+            }
+        }
+    }
+}
 
 fn find_and_add_tileset_blps(
     results: &mut Vec<PathBuf>,
@@ -192,14 +275,9 @@ fn find_and_add_tileset_blps(
 
 fn prune_workspace(
     workspace_root: &Path,
-    dependencies: &Vec<PathBuf>,
+    dependencies: &HashSet<PathBuf>,
     warns: &mut Vec<ResolveMapAssetsCmdWarn>,
 ) {
-    let dependency_lookup: HashSet<PathBuf> = HashSet::from_iter(dependencies
-        .iter()
-        .map(|it| fs::canonicalize(it).expect("Invalid path encountered"))
-    );
-
     for entry in WalkDir::new(workspace_root)
         .into_iter()
         .filter_map(|e| e.ok()) {
@@ -211,7 +289,7 @@ fn prune_workspace(
         let workspace_file = fs::canonicalize(entry.path())
             .expect("Invalid path encountered");
 
-        if !dependency_lookup.contains(&workspace_file) {
+        if !dependencies.contains(&workspace_file) {
             // println!("To be trashed: {:?}", workspace_file);
             if let Err(e) = fs::remove_file(&workspace_file) {
                 let msg = format!("Failed to delete '{}' reason: '{}'", workspace_file.str(), e);

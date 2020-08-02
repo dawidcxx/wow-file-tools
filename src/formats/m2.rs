@@ -35,7 +35,6 @@ impl M2File {
 
         for i in 0..n_textures {
             let name_offset = bytes.get_u32((text_offset + (12 * (i + 1)) + (i * 4)) as usize)?;
-            // let name_offset = bytes.get_u32((text_offset + (12 * i)) as usize)?;
             let name = bytes.get_string_null_terminated(name_offset as usize);
             if let Ok(name) = name {
                 // a lot of garbage names.. filtering them out for now.
