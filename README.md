@@ -1,10 +1,25 @@
-- ⚠ WIP
-
 # About
 
-CLI utility used @ [ArenaCraft](https://github.com/arenacraftwow). Mostly for manipulating client side files.
+General purpose utility used @ [ArenaCraft](https://github.com/arenacraftwow). Mostly for manipulating client side files. This is not meant to be one tool but rather a collection of different tools sharing the same framework. 
 
 # Features
+
+- ### Resolve Map assets
+
+The `resolve-map-assets` command will, for a given `map-id` output all the maps dependencies. The `map-id` referes to a entry in `Map.dbc`. 
+
+```
+FLAGS:
+    -h, --help                          Prints help information
+    -a, --make-result-paths-absolute    
+    -p, --prune-unused                  Remove unneeded files within the workspace
+    -V, --version                       Prints version information
+
+OPTIONS:
+    -m, --map-id <map-id>          
+    -w, --workspace <workspace>    
+```
+
 
 - ### View Command
 
@@ -23,22 +38,6 @@ The `view` command will dump the conversion of the binary file into JSON. Suppor
 * [x] WMO
 
 *Note:* some formats might be lacking fields
-
-- ### Resolve Map assets
-
-The `resolve-map-assets` command will, for a given `map-id` output all the maps dependencies. The `map-id` referes to a entry in `Map.dbc`. 
-
-```
-FLAGS:
-    -h, --help                          Prints help information
-    -a, --make-result-paths-absolute    
-    -p, --prune-unused                  Remove unneeded files within the workspace
-    -V, --version                       Prints version information
-
-OPTIONS:
-    -m, --map-id <map-id>          
-    -w, --workspace <workspace>    
-```
 
 # Compiling
 
