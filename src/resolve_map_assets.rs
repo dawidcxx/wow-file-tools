@@ -34,7 +34,7 @@ pub struct ResolveMapAssetsCmdResult {
 
 pub fn resolve_map_assets(
     workspace_path: &Path,
-    map_id: u32,
+    map_ids: &Vec<u32>,
     should_prune_workspace: bool,
 ) -> R<ResolveMapAssetsCmdResult> {
     if !workspace_path.exists() {
@@ -49,96 +49,99 @@ pub fn resolve_map_assets(
 
     let map_dbc = load_map_dbc_from_path(map_dbc_loc.str())?;
 
-    let map_row = map_dbc.rows
-        .iter()
-        .find(|map| map.id == map_id)
-        .ok_or(format!("Map with id {} not found", map_id))?;
-
     results_builder.push(map_dbc_loc);
 
-    let maps_folder = join_path_ignoring_casing(
-        workspace_path,
-        format!("World/Maps/{}", map_row.internal_name).as_str(),
-    ).ok_or("Missing World/Maps folder in workspace")?;
+    for map_id in map_ids {
+        let map_row = map_dbc.rows
+            .iter()
+            .find(|map| map.id == *map_id)
+            .ok_or(format!("Map with id {} not found", map_id))?;
 
-    // to(maybe)do: these could be a warning.
-    let wdt_file_path = get_wdt_path(&maps_folder, map_row)
-        .ok_or("Missing Map WDT file")?;
-    let wdl_file_path = get_wdl_path(&maps_folder, map_row)
-        .ok_or("Missing Map WDL file")?;
 
-    let wdl = WdlFile::from_path(&wdl_file_path)?;
-
-    add_wow_dep(workspace_path, wdl.mwmo.0, &mut results_builder, &mut warns);
-
-    results_builder.push(wdl_file_path);
-    results_builder.push(wdt_file_path);
-
-    for adt_entry in find_files_by_extension(maps_folder, 2, ".adt") {
-        let adt_path = adt_entry.into_path();
-        results_builder.push(adt_path.clone());
-
-        let adt = AdtFile::from_path(adt_path.clone());
-
-        if adt.is_err() {
-            warns.push(AdtParseErr(adt_path.clone()));
-            break;
-        }
-
-        let adt = adt.unwrap();
-
-        add_wow_dep(
+        let maps_folder = join_path_ignoring_casing(
             workspace_path,
-            adt.mtex.0,
-            &mut results_builder,
-            &mut warns,
-        );
+            format!("World/Maps/{}", map_row.internal_name).as_str(),
+        ).ok_or("Missing World/Maps folder in workspace")?;
 
-        let added_wmos = add_wow_dep(
-            workspace_path,
-            adt.mwmo.0,
-            &mut results_builder,
-            &mut warns,
-        );
+        // to(maybe)do: these could be a warning.
+        let wdt_file_path = get_wdt_path(&maps_folder, map_row)
+            .ok_or("Missing Map WDT file")?;
+        let wdl_file_path = get_wdl_path(&maps_folder, map_row)
+            .ok_or("Missing Map WDL file")?;
 
-        add_m2_type_wow_dep(
-            workspace_path,
-            adt.mmdx.0,
-            &mut results_builder,
-            &mut warns,
-        );
+        let wdl = WdlFile::from_path(&wdl_file_path)?;
 
-        for wmo_path in added_wmos {
-            let wmo = WmoFile::from_path(wmo_path.str())?;
+        add_wow_dep(workspace_path, wdl.mwmo.0, &mut results_builder, &mut warns);
+
+        results_builder.push(wdl_file_path);
+        results_builder.push(wdt_file_path);
+
+        for adt_entry in find_files_by_extension(maps_folder, 2, ".adt") {
+            let adt_path = adt_entry.into_path();
+            results_builder.push(adt_path.clone());
+
+            let adt = AdtFile::from_path(adt_path.clone());
+
+            if adt.is_err() {
+                warns.push(AdtParseErr(adt_path.clone()));
+                break;
+            }
+
+            let adt = adt.unwrap();
+
             add_wow_dep(
                 workspace_path,
-                wmo.root.motx.0,
+                adt.mtex.0,
                 &mut results_builder,
                 &mut warns,
             );
+
+            let added_wmos = add_wow_dep(
+                workspace_path,
+                adt.mwmo.0,
+                &mut results_builder,
+                &mut warns,
+            );
+
             add_m2_type_wow_dep(
                 workspace_path,
-                wmo.root.modn.0,
+                adt.mmdx.0,
                 &mut results_builder,
                 &mut warns,
             );
 
-            results_builder.append(wmo.loaded_group_files.clone().as_mut())
+            for wmo_path in added_wmos {
+                let wmo = WmoFile::from_path(wmo_path.str())?;
+                add_wow_dep(
+                    workspace_path,
+                    wmo.root.motx.0,
+                    &mut results_builder,
+                    &mut warns,
+                );
+                add_m2_type_wow_dep(
+                    workspace_path,
+                    wmo.root.modn.0,
+                    &mut results_builder,
+                    &mut warns,
+                );
+
+                results_builder.append(wmo.loaded_group_files.clone().as_mut())
+            }
         }
+
+        find_and_add_tileset_blps(
+            &mut results_builder,
+        );
+
+        find_and_add_minimap_blps(
+            &workspace_path,
+            map_row,
+            &mut results_builder,
+            &mut warns,
+        );
+
+        find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results_builder, &mut warns);
     }
-
-    find_and_add_tileset_blps(
-        &mut results_builder,
-    );
-
-    find_and_add_minimap_blps(
-        &workspace_path,
-        map_row,
-        &mut results_builder,
-        &mut warns,
-    );
-
-    find_and_add_loading_screen_blp(workspace_path, &map_row, &mut results_builder, &mut warns);
 
     let results: HashSet<PathBuf> = HashSet::from_iter(results_builder
         .iter()

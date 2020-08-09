@@ -72,7 +72,7 @@ fn handle_resolve_map_assets_cmd(
 ) -> R<ResolveMapAssetsCmdResult> {
     resolve_map_assets::resolve_map_assets(
         Path::new(cmd.workspace.as_str()),
-        cmd.map_id as u32,
+        &cmd.map_id,
         cmd.prune_unused,
     )
 }
@@ -164,8 +164,8 @@ pub struct ResolveMapAssetsCmd {
     #[clap(short = "w", long = "workspace")]
     workspace: String,
 
-    #[clap(short = "m", long = "map-id")]
-    map_id: usize,
+    #[clap(short = "m", long = "map-ids")]
+    map_id: Vec<u32>,
 
     #[clap(short = "p", long = "prune-unused", help = "Remove unneeded files within the workspace")]
     prune_unused: bool,
