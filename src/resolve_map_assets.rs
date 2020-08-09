@@ -167,12 +167,15 @@ fn find_and_add_minimap_blps(
     results: &mut Vec<PathBuf>,
     warns: &mut Vec<ResolveMapAssetsCmdWarn>,
 ) {
-    let mini_map_folder = match join_path_ignoring_casing(workspace_root, "TILESET/Textures/Minimap") {
+    let mini_map_folder = match vec!["TILESET/Textures/Minimap", "Textures/Minimap"]
+        .iter()
+        .filter_map(|it| join_path_ignoring_casing(workspace_root, it))
+        .nth(0) {
         None => {
             warns.push(ResolveMapAssetsCmdWarn::MissingMiniMapFolder);
             return;
         }
-        Some(f) => f,
+        Some(it) => it
     };
 
     let md5_translate_file = match join_path_ignoring_casing(mini_map_folder.as_ref(), "md5translate.trs") {
