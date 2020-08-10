@@ -197,7 +197,7 @@ fn find_and_add_minimap_blps(
     for line in BufReader::new(md5_translate_file)
         .lines()
         .filter_map(|it| it.ok()) {
-        if line.starts_with(&map_ref.internal_name) {
+        if line.to_uppercase().starts_with(&map_ref.internal_name.to_uppercase()) {
             let blp = match line.split("\t").last() {
                 None => {
                     warns.push(ResolveMapAssetsCmdWarn::FileParseFail(format!(
