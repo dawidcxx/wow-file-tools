@@ -90,6 +90,7 @@ fn get_view_result(
                 "GroundEffectTexture.dbc" => serialize_result(root_cmd, load_ground_effect_texture_from_path(file_path_str))?,
                 "BattlemasterList.dbc" => serialize_result(root_cmd, load_battle_master_list_from_path(file_path_str))?,
                 "LightSkybox.dbc" => serialize_result(root_cmd, load_light_sky_box_from_path(file_path_str))?,
+                "Light.dbc" => serialize_result(root_cmd, load_light_from_path(file_path_str))?,
                 "AreaTable.dbc" => serialize_result(root_cmd, load_area_table_from_path(file_path_str))?,
                 "Map.dbc" => serialize_result(root_cmd, load_map_dbc_from_path(file_path_str))?,
                 "LoadingScreens.dbc" => serialize_result(root_cmd, load_loading_screens_dbc_from_path(file_path_str))?,
