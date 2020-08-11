@@ -2,6 +2,7 @@ pub mod map;
 pub mod dbc;
 pub mod loading_screens;
 pub mod area_table;
+pub mod light_params;
 pub mod light_sky_box;
 pub mod light;
 pub mod battle_master_list;

@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 use std::str::from_utf8;
-use crate::common::R;
+use crate::common::{R, err};
 
 pub trait VecUtils {
     fn get_reversed_string(&self, from: usize, to: usize) -> R<String>;
@@ -68,13 +68,31 @@ impl VecUtils for Vec<u8> {
     }
 
     fn get_two_bytes(&self, offset: usize) -> R<[u8; 2]> {
-        let v = &self[offset..offset + 2];
-        Ok(v.try_into()?)
+        if offset + 2 <= self.len() {
+            let v = &self[offset..offset + 2];
+            Ok(v.try_into()?)
+        } else {
+            let msg = format!("ByteUtils: Slice out of range! [{}..{}] but slice length is {}",
+                              offset,
+                              offset + 2,
+                              self.len()
+            );
+            err(msg)
+        }
     }
 
     fn get_four_bytes(&self, offset: usize) -> R<[u8; 4]> {
-        let v = &self[offset..offset + 4];
-        Ok(v.try_into()?)
+        if offset + 4 <= self.len() {
+            let v = &self[offset..offset + 4];
+            Ok(v.try_into()?)
+        } else {
+            let msg = format!("ByteUtils: Slice out of range! [{}..{}] but slice length is {}",
+                              offset,
+                              offset + 4,
+                              self.len()
+            );
+            err(msg)
+        }
     }
 
     fn get_null_terminated_strings(&self) -> R<Vec<String>> {

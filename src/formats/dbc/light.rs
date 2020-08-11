@@ -4,16 +4,16 @@ use crate::common::R;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LightDbcRow {
-    id: u32,
-    ref_map_id: u32,
-    position: [f32; 3],
-    falloff_start: f32,
-    falloff_end: f32,
-    params_clear: u32,
-    params_clear_water: u32,
-    params_storm: u32,
-    params_storm_water: u32,
-    params_death: u32,
+   pub id: u32,
+   pub ref_map_id: u32,
+   pub position: [f32; 3],
+   pub falloff_start: f32,
+   pub falloff_end: f32,
+   pub params_clear: u32,
+   pub params_clear_water: u32,
+   pub params_storm: u32,
+   pub params_storm_water: u32,
+   pub params_death: u32,
 }
 
 impl LightDbcRow {
