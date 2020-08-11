@@ -8,6 +8,7 @@ pub mod light;
 pub mod battle_master_list;
 pub mod ground_effect_texture;
 pub mod ground_effect_doodad;
+pub mod pvp_difficulty;
 
 use std::clone::Clone;
 use std::fs::File;

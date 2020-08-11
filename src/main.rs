@@ -95,6 +95,7 @@ fn get_view_result(
                 "AreaTable.dbc" => serialize_result(root_cmd, load_area_table_from_path(file_path_str))?,
                 "Map.dbc" => serialize_result(root_cmd, load_map_dbc_from_path(file_path_str))?,
                 "LoadingScreens.dbc" => serialize_result(root_cmd, load_loading_screens_dbc_from_path(file_path_str))?,
+                "PvpDifficulty.dbc" => serialize_result(root_cmd, load_pvp_difficulty_from_path(file_path_str))?,
                 _ => {
                     let err_msg = format!("Unsupported DBC file: ({})", file_name);
                     return Err(err_msg.into());

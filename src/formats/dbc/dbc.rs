@@ -10,6 +10,7 @@ use crate::formats::dbc::ground_effect_texture::GroundEffectTextureDbcRow;
 use crate::formats::dbc::ground_effect_doodad::GroundEffectDoodadDbcRow;
 use crate::formats::dbc::light::LightDbcRow;
 use crate::formats::dbc::light_params::LightParamsDbcRow;
+use crate::formats::dbc::pvp_difficulty::PvpDifficulty;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -65,3 +66,9 @@ pub fn load_ground_effect_texture_from_path(path: &str) -> R<Dbc<GroundEffectTex
 pub fn load_ground_effect_doodad_from_path(path: &str) -> R<Dbc<GroundEffectDoodadDbcRow>> {
     load_dbc(path, Box::new(GroundEffectDoodadDbcRow::process))
 }
+
+
+pub fn load_pvp_difficulty_from_path(path: &str) -> R<Dbc<PvpDifficulty>> {
+    load_dbc(path, Box::new(PvpDifficulty::process))
+}
+
