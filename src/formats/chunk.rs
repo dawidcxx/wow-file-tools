@@ -112,6 +112,7 @@ pub trait ChunkVecUtils {
     fn get_mogn(&self) -> ChunkMogn;
     fn get_modn(&self) -> ChunkModn;
     fn get_mohd(&self) -> ChunkMohd;
+    fn get_molr(&self) -> Option<ChunkMolr>;
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
@@ -167,6 +168,11 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_modn(&self) -> ChunkModn { ChunkModn::from_chunk(self.get_chunk_of_type("MODN")) }
 
     fn get_mohd(&self) -> ChunkMohd { ChunkMohd::from_chunk(self.get_chunk_of_type("MOHD")) }
+
+    fn get_molr(&self) -> Option<ChunkMolr> {
+        self.get_chunk_of_type_optionally("MOLR")
+            .map(ChunkMolr::from_chunk)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -538,5 +544,22 @@ impl ChunkMohd {
                 [b1, b2, b3]
             },
         }
+    }
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMolr(pub Vec<u16>);
+
+impl ChunkMolr {
+    pub fn from_chunk(c: &Chunk) -> ChunkMolr {
+        assert_eq!(c.get_id_as_string(), "MOLR");
+        let strings = c.data.chunks(2)
+            .map(|c| {
+                let c = c.to_vec();
+                c.get_u16(0).unwrap()
+            })
+            .collect();
+        ChunkMolr(strings)
     }
 }

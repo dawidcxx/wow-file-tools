@@ -13,7 +13,6 @@ pub struct LightParamsDbcRow {
     pub water_deep_alpha: f32,
     pub ocean_shallow_alpha: f32,
     pub ocean_deep_alpha: f32,
-    pub flags: u32,
 }
 
 impl LightParamsDbcRow {
@@ -28,7 +27,6 @@ impl LightParamsDbcRow {
             let water_deep_alpha = row.get_float_column(7)?;
             let ocean_shallow_alpha = row.get_float_column(8)?;
             let ocean_deep_alpha = row.get_float_column(9)?;
-            let flags = row.get_number_column(10).unwrap_or_default();
             row_builder.push(LightParamsDbcRow {
                 id,
                 highlight_sky,
@@ -39,7 +37,6 @@ impl LightParamsDbcRow {
                 water_deep_alpha,
                 ocean_shallow_alpha,
                 ocean_deep_alpha,
-                flags,
             })
         }
         Ok(())

@@ -1,5 +1,5 @@
 use crate::common::R;
-use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMogn, ChunkModn, ChunkMohd};
+use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMogn, ChunkModn, ChunkMohd, ChunkMolr};
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -52,7 +52,7 @@ pub struct WmoGroupFile {
     pub monr: (),
     pub motv: (),
     pub moba: (),
-    pub molr: Option<()>,
+    pub molr: Option<ChunkMolr>,
     pub modr: Option<()>,
     pub mobn: Option<()>,
     pub mobr: Option<()>,
@@ -110,7 +110,7 @@ impl WmoFile {
 
                 // let wmo_group_file = Self::load_group_wmo(b.to_str().unwrap());
                 // if wmo_group_file.is_ok() {
-                    loaded_group_paths.push(b);
+                loaded_group_paths.push(b);
                 // }
                 wmo_group_file
             })
@@ -209,6 +209,7 @@ impl WmoRootFile {
 impl WmoGroupFile {
     fn new(chunks: Vec<Chunk>) -> R<WmoGroupFile> {
         let mver = chunks.get_mver_chunk()?;
+        let molr = chunks.get_molr();
         Ok(WmoGroupFile {
             mver,
             mogp: (),
@@ -218,7 +219,7 @@ impl WmoGroupFile {
             monr: (),
             motv: (),
             moba: (),
-            molr: None,
+            molr,
             modr: None,
             mobn: None,
             mobr: None,
