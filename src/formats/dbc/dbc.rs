@@ -11,6 +11,7 @@ use crate::formats::dbc::ground_effect_doodad::GroundEffectDoodadDbcRow;
 use crate::formats::dbc::light::LightDbcRow;
 use crate::formats::dbc::light_params::LightParamsDbcRow;
 use crate::formats::dbc::pvp_difficulty::PvpDifficulty;
+use crate::formats::dbc::game_object_display_info::GameObjectDisplayInfo;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -20,8 +21,7 @@ pub struct Dbc<T> {
 
 type DbcRowProcessor<T> = dyn Fn(&mut Vec<T>, &DbcFile) -> R<()>;
 
-fn load_dbc<T>(path: &str, row_mapper: Box<DbcRowProcessor<T>>) -> R<Dbc<T>>
-{
+fn load_dbc<T>(path: &str, row_mapper: Box<DbcRowProcessor<T>>) -> R<Dbc<T>> {
     let dbc = DbcFile::new(path)?;
     let mut row_builder = Vec::with_capacity(dbc.header.field_count as usize);
     row_mapper.call((&mut row_builder, &dbc))?;
@@ -67,8 +67,10 @@ pub fn load_ground_effect_doodad_from_path(path: &str) -> R<Dbc<GroundEffectDood
     load_dbc(path, Box::new(GroundEffectDoodadDbcRow::process))
 }
 
-
 pub fn load_pvp_difficulty_from_path(path: &str) -> R<Dbc<PvpDifficulty>> {
     load_dbc(path, Box::new(PvpDifficulty::process))
 }
 
+pub fn load_game_object_display_info_from_path(path: &str) -> R<Dbc<GameObjectDisplayInfo>> {
+    load_dbc(path, Box::new(GameObjectDisplayInfo::process))
+}

@@ -6,8 +6,6 @@ pub mod formats;
 pub mod common;
 mod resolve_map_assets;
 
-// mod resolve_map_assets;
-
 use clap::Clap;
 use crate::common::R;
 use std::path::Path;
@@ -96,6 +94,7 @@ fn get_view_result(
                 "Map.dbc" => serialize_result(root_cmd, load_map_dbc_from_path(file_path_str))?,
                 "LoadingScreens.dbc" => serialize_result(root_cmd, load_loading_screens_dbc_from_path(file_path_str))?,
                 "PvpDifficulty.dbc" => serialize_result(root_cmd, load_pvp_difficulty_from_path(file_path_str))?,
+                "GameObjectDisplayInfo.dbc" => serialize_result(root_cmd, load_game_object_display_info_from_path(file_path_str))?,
                 _ => {
                     let err_msg = format!("Unsupported DBC file: ({})", file_name);
                     return Err(err_msg.into());

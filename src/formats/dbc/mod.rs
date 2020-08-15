@@ -9,6 +9,7 @@ pub mod battle_master_list;
 pub mod ground_effect_texture;
 pub mod ground_effect_doodad;
 pub mod pvp_difficulty;
+pub mod game_object_display_info;
 
 use std::clone::Clone;
 use std::fs::File;
