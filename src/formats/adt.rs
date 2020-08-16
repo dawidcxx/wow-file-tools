@@ -14,6 +14,7 @@ pub struct AdtFile {
     pub mwmo: ChunkMwmo,
     pub mwid: ChunkMwid,
     pub mddf: ChunkMddf,
+    pub mcnk: ChunkMcnk,
 }
 
 impl AdtFile {
@@ -32,6 +33,7 @@ impl AdtFile {
         let mwmo = chunks.get_mwmo();
         let mwid = chunks.get_mwid();
         let mddf = chunks.get_mddf();
+        let mcnk = chunks.get_mcnk();
         Ok(AdtFile {
             mver,
             mhdr,
@@ -42,6 +44,7 @@ impl AdtFile {
             mwmo,
             mwid,
             mddf,
+            mcnk
         })
     }
 }

@@ -94,6 +94,7 @@ impl Chunk {
 
 pub trait ChunkVecUtils {
     fn get_chunk_of_type_optionally(&self, chunk_type: &str) -> Option<&Chunk>;
+    fn get_all_chunks_of_type(&self, chunk_type: &str) -> Vec<&Chunk>;
     fn get_chunk_of_type(&self, chunk_type: &str) -> &Chunk;
     fn get_chunk_of_type_checked(&self, chunk_type: &str) -> R<&Chunk>;
     fn get_mver_chunk(&self) -> R<ChunkMver>;
@@ -113,11 +114,18 @@ pub trait ChunkVecUtils {
     fn get_modn(&self) -> ChunkModn;
     fn get_mohd(&self) -> ChunkMohd;
     fn get_molr(&self) -> Option<ChunkMolr>;
+    fn get_mcnk(&self) -> ChunkMcnk;
 }
 
 impl ChunkVecUtils for Vec<Chunk> {
     fn get_chunk_of_type_optionally(&self, chunk_type: &str) -> Option<&Chunk> {
         self.iter().find(|it| it.get_id_as_string() == chunk_type.to_owned())
+    }
+
+    fn get_all_chunks_of_type(&self, chunk_type: &str) -> Vec<&Chunk> {
+        self.iter()
+            .filter(|it| it.get_id_as_string() == chunk_type.to_owned())
+            .collect()
     }
 
     fn get_chunk_of_type(&self, chunk_type: &str) -> &Chunk {
@@ -172,6 +180,11 @@ impl ChunkVecUtils for Vec<Chunk> {
     fn get_molr(&self) -> Option<ChunkMolr> {
         self.get_chunk_of_type_optionally("MOLR")
             .map(ChunkMolr::from_chunk)
+    }
+
+    fn get_mcnk(&self) -> ChunkMcnk {
+        let chunks = self.get_all_chunks_of_type("MCNK");
+        ChunkMcnk::from_chunks(chunks)
     }
 }
 
@@ -561,5 +574,38 @@ impl ChunkMolr {
             })
             .collect();
         ChunkMolr(strings)
+    }
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMcnk {
+    pub items: Vec<ChunkMcnkItem>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ChunkMcnkItem {
+    pub flags: u32,
+    pub area_id: u32,
+}
+
+impl ChunkMcnk {
+    pub fn from_chunks(chunks: Vec<&Chunk>) -> ChunkMcnk {
+        let items = chunks
+            .into_iter()
+            .map(|c| {
+                assert_eq!(c.get_id_as_string(), "MCNK");
+                let flags = c.data.get_u32(0x00).unwrap();
+                let area_id = c.data.get_u32(0x034).unwrap();
+                ChunkMcnkItem {
+                    flags,
+                    area_id,
+                }
+            })
+            .collect();
+        ChunkMcnk {
+            items
+        }
     }
 }

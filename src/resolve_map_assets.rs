@@ -16,6 +16,14 @@ use crate::formats::mdx::MdxFile;
 use crate::formats::wdl::WdlFile;
 use std::io::{BufReader, BufRead};
 
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ResolveMapAssetsCmdResult {
+    pub warns: Vec<ResolveMapAssetsCmdWarn>,
+    pub results: HashSet<PathBuf>,
+    pub misc: ResolveMapAssetsCmdResultMisc,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub enum ResolveMapAssetsCmdWarn {
     Missing(String),
@@ -27,9 +35,15 @@ pub enum ResolveMapAssetsCmdWarn {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ResolveMapAssetsCmdResult {
-    pub warns: Vec<ResolveMapAssetsCmdWarn>,
-    pub results: HashSet<PathBuf>,
+pub struct ResolveMapAssetsCmdResultMisc {
+    pub mcnk_area_id_entries: HashSet<ResolveMapAssetsAreaIdEntry>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Hash, Eq, PartialEq)]
+pub struct ResolveMapAssetsAreaIdEntry {
+    pub area_id: u32,
+    pub map_id: u32,
+    pub map_name: String,
 }
 
 pub fn resolve_map_assets(
@@ -43,6 +57,7 @@ pub fn resolve_map_assets(
 
     let mut results_builder = Vec::new();
     let mut warns: Vec<ResolveMapAssetsCmdWarn> = Vec::new();
+    let mut mcnk_area_id_entries = HashSet::new();
 
     let map_dbc_loc = join_path_ignoring_casing(workspace_path, "DBFilesClient/Map.dbc")
         .ok_or("Missing Map.dbc file")?;
@@ -88,6 +103,14 @@ pub fn resolve_map_assets(
             }
 
             let adt = adt.unwrap();
+
+            for mcnk in &adt.mcnk.items {
+                mcnk_area_id_entries.insert(ResolveMapAssetsAreaIdEntry {
+                    area_id: mcnk.area_id,
+                    map_id: map_id.clone(),
+                    map_name: map_row.internal_name.clone(),
+                });
+            }
 
             add_wow_dep(
                 workspace_path,
@@ -158,6 +181,9 @@ pub fn resolve_map_assets(
     Ok(ResolveMapAssetsCmdResult {
         warns,
         results,
+        misc: ResolveMapAssetsCmdResultMisc {
+            mcnk_area_id_entries
+        },
     })
 }
 
