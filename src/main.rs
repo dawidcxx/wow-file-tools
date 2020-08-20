@@ -7,7 +7,7 @@ pub mod common;
 mod resolve_map_assets;
 
 use clap::Clap;
-use crate::common::R;
+use crate::common::{R};
 use std::path::Path;
 use serde::{Serialize, Serializer};
 use std::error::Error;
@@ -18,6 +18,7 @@ use crate::formats::dbc::dbc::*;
 use crate::formats::wdt::WdtFile;
 use crate::formats::m2::M2File;
 use crate::resolve_map_assets::ResolveMapAssetsCmdResult;
+use crate::formats::dbc::join::spell::get_spells_join;
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -58,6 +59,13 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
         Cmd::ResolveMapAssets(cmd) => {
             serialize_result(&root_cmd, handle_resolve_map_assets_cmd(cmd))?
         }
+        Cmd::DbcJoin(cmd) => {
+            match cmd.join {
+                AggregateViewCmdChoice::SPELLS => {
+                    serialize_result(&root_cmd, get_spells_join(&cmd.dbc_folder))?
+                }
+            }
+        }
     };
 
     println!("{}", result);
@@ -84,6 +92,7 @@ fn get_view_result(
         "dbc" => {
             let file_name = extract_file_name(file_path_str);
             match file_name {
+                "Spell.dbc" => serialize_result(root_cmd, load_spell_dbc_from_path(file_path_str))?,
                 "GroundEffectDoodad.dbc" => serialize_result(root_cmd, load_ground_effect_doodad_from_path(file_path_str))?,
                 "GroundEffectTexture.dbc" => serialize_result(root_cmd, load_ground_effect_texture_from_path(file_path_str))?,
                 "BattlemasterList.dbc" => serialize_result(root_cmd, load_battle_master_list_from_path(file_path_str))?,
@@ -151,6 +160,7 @@ struct RootCmd {
 enum Cmd {
     View(ViewCmd),
     ResolveMapAssets(ResolveMapAssetsCmd),
+    DbcJoin(DbcJoinCmd),
 }
 
 #[derive(Clap)]
@@ -171,6 +181,32 @@ pub struct ResolveMapAssetsCmd {
 
     #[clap(short = "p", long = "prune-unused", help = "Remove unneeded files within the workspace")]
     prune_unused: bool,
+}
+
+#[derive(Clap)]
+#[clap(about = "Show a joined view of multiple dbc files")]
+struct DbcJoinCmd {
+    #[clap(short = "d", long = "dbc-folder")]
+    dbc_folder: String,
+
+    #[clap(short = "j", long = "join-name", help = "join to display, one of: SPELLS")]
+    join: AggregateViewCmdChoice,
+}
+
+enum AggregateViewCmdChoice {
+    SPELLS
+}
+
+impl std::str::FromStr for AggregateViewCmdChoice {
+    type Err = Box<dyn Error>;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_uppercase().as_str() {
+            "SPELLS" => Ok(Self::SPELLS),
+            _ => {
+                Err("Must be one of ( SPELLS )\n".into())
+            }
+        }
+    }
 }
 
 struct ProgramErr {

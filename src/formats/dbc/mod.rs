@@ -1,3 +1,5 @@
+pub mod join;
+pub mod spell;
 pub mod map;
 pub mod dbc;
 pub mod loading_screens;
@@ -19,6 +21,7 @@ use serde::{Serialize, Deserialize};
 use std::rc::Rc;
 use crate::byte_utils::*;
 use crate::common::R;
+use std::path::Path;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbcHeader {
@@ -67,6 +70,11 @@ impl DbcFileIteratorRow {
         Ok(hex::encode(bytes))
     }
 
+    pub fn get_column_raw(&self, column: usize) -> R<[u8; 4]> {
+        self.file_bytes.clone().get_four_bytes(self.get_col_offset(column))
+    }
+
+
     pub fn get_number_column(&self, column: usize) -> R<u32> {
         self.file_bytes.get_u32(self.get_col_offset(column))
     }
@@ -90,7 +98,7 @@ impl DbcFileIteratorRow {
 }
 
 impl DbcFile {
-    pub fn new(path: &str) -> R<DbcFile> {
+    pub fn new<P: AsRef<Path>>(path: P) -> R<DbcFile> {
         let mut f = File::open(path)?;
         let mut dbc_content = Vec::new();
         f.read_to_end(&mut dbc_content)?;
