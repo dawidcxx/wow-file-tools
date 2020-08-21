@@ -62,7 +62,7 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
         Cmd::DbcJoin(cmd) => {
             match cmd.join {
                 AggregateViewCmdChoice::SPELLS => {
-                    serialize_result(&root_cmd, get_spells_join(&cmd.dbc_folder))?
+                    serialize_result(&root_cmd, get_spells_join(&cmd.dbc_folder, &cmd.record_id))?
                 }
             }
         }
@@ -191,6 +191,9 @@ struct DbcJoinCmd {
 
     #[clap(short = "j", long = "join-name", help = "join to display, one of: SPELLS")]
     join: AggregateViewCmdChoice,
+
+    #[clap(short = "r", long = "record-id")]
+    record_id: Option<u32>
 }
 
 enum AggregateViewCmdChoice {

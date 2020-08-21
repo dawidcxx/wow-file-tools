@@ -1,5 +1,6 @@
 pub mod join;
 pub mod spell;
+pub mod spell_category;
 pub mod map;
 pub mod dbc;
 pub mod loading_screens;
@@ -12,6 +13,7 @@ pub mod ground_effect_texture;
 pub mod ground_effect_doodad;
 pub mod pvp_difficulty;
 pub mod game_object_display_info;
+pub mod spell_visual;
 
 use std::clone::Clone;
 use std::fs::File;

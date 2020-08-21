@@ -3,8 +3,13 @@ use serde::{Serialize, Deserialize};
 use crate::common::{R, err};
 use std::fs::{read_dir, DirEntry};
 use crate::formats::dbc::join::utils::{DbcLookup, has_bit_flag};
-use crate::formats::dbc::dbc::{load_spell_dbc_from_path};
+use crate::formats::dbc::dbc::{load_spell_dbc_from_path, load_spell_category_dbc_from_path, load_spell_visual_dbc_from_path};
 use crate::formats::dbc::spell::SpellDbcRow;
+use std::convert::{TryFrom};
+use std::collections::HashMap;
+use std::iter::FromIterator;
+use crate::formats::dbc::spell_category::SpellCategory;
+use crate::formats::dbc::spell_visual::SpellVisual;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -12,8 +17,31 @@ pub struct SpellJoinResult {
     pub spells: Vec<ParsedSpell>
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ParsedSpell {
+    pub id: u32,
+    pub spell_name: String,
+    pub spell_category: Option<SpellCategory>,
+    pub dispel_type: SpellDispelType,
+    pub mechanic: SpellMechanic,
+    pub attr0: SpellAttr0,
+    pub attr1: SpellAttr1,
+    pub attr2: SpellAttr2,
+    pub attr3: SpellAttr3,
+    pub attr4: SpellAttr4,
+    pub attr5: SpellAttr5,
+    pub attr6: SpellAttr6,
+    pub attr7: SpellAttr7,
+    pub effect_1: Option<SpellEffect>,
+    pub effect_2: Option<SpellEffect>,
+    pub effect_3: Option<SpellEffect>,
+    pub spell_visual_1: Option<SpellVisual>,
+    pub spell_visual_2: Option<SpellVisual>,
+}
+
 pub fn get_spells_join(
     dbc_folder: &String,
+    record_id: &Option<u32>,
 ) -> R<SpellJoinResult> {
     let dbc_folder = PathBuf::from(dbc_folder);
 
@@ -33,30 +61,69 @@ pub fn get_spells_join(
 
     let dbc_lookup = DbcLookup::from_dbc_entries(dbc_file_entries);
 
-    let v = dbc_lookup.get("Spell.dbc")?;
+    let spell_dbc_path = dbc_lookup.get("Spell.dbc")?;
+    let spell_category_path = dbc_lookup.get("SpellCategory.dbc")?;
+    let spell_visual_path = dbc_lookup.get("SpellVisual.dbc")?;
 
-    let spells_dbc = load_spell_dbc_from_path(v)?;
+    let spells_dbc_rows = load_spell_dbc_from_path(spell_dbc_path)?.rows;
+    let spells_dbc_rows = if let Some(record_id) = record_id {
+        vec![spells_dbc_rows
+            .into_iter()
+            .find(|v| v.id == *record_id)
+            .ok_or(format!("Spell.dbc doesn't have a record with id = {}", record_id).as_str())?
+        ]
+    } else {
+        spells_dbc_rows
+    };
+    let spell_dbc_categories_by_id = HashMap::from_iter(
+        load_spell_category_dbc_from_path(spell_category_path)?
+            .rows
+            .into_iter()
+            .map(|category| (category.id, category))
+    );
+    let spell_visuals_by_id = HashMap::from_iter(
+        load_spell_visual_dbc_from_path(spell_visual_path)?
+            .rows
+            .into_iter()
+            .map(|category| (category.id, category))
+    );
+
 
     Ok(SpellJoinResult {
-        spells: spells_dbc.rows.into_iter().map(|v| process_raw_row(v)).collect()
+        spells: spells_dbc_rows.into_iter().map(|spell_dbc_row: SpellDbcRow|
+            process_raw_row(
+                spell_dbc_row,
+                &spell_dbc_categories_by_id,
+                &spell_visuals_by_id,
+            )
+        ).collect()
     })
 }
 
-fn process_raw_row(raw_dbc: SpellDbcRow) -> ParsedSpell {
-    let check_attr0 = |flag: u32| has_bit_flag(raw_dbc.attr0, flag);
-    let check_attr1 = |flag: u32| has_bit_flag(raw_dbc.attr1, flag);
-    let check_attr2 = |flag: u32| has_bit_flag(raw_dbc.attr2, flag);
-    let check_attr3 = |flag: u32| has_bit_flag(raw_dbc.attr3, flag);
-    let check_attr4 = |flag: u32| has_bit_flag(raw_dbc.attr4, flag);
-    let check_attr5 = |flag: u32| has_bit_flag(raw_dbc.attr5, flag);
-    let check_attr6 = |flag: u32| has_bit_flag(raw_dbc.attr6, flag);
-    let check_attr7 = |flag: u32| has_bit_flag(raw_dbc.attr7, flag);
+fn process_raw_row(
+    row: SpellDbcRow,
+    spell_dbc_categories_by_id: &HashMap<u32, SpellCategory>,
+    spell_visuals_by_id: &HashMap<u32, SpellVisual>,
+) -> ParsedSpell {
+    let check_attr0 = |flag: u32| has_bit_flag(row.attr0, flag);
+    let check_attr1 = |flag: u32| has_bit_flag(row.attr1, flag);
+    let check_attr2 = |flag: u32| has_bit_flag(row.attr2, flag);
+    let check_attr3 = |flag: u32| has_bit_flag(row.attr3, flag);
+    let check_attr4 = |flag: u32| has_bit_flag(row.attr4, flag);
+    let check_attr5 = |flag: u32| has_bit_flag(row.attr5, flag);
+    let check_attr6 = |flag: u32| has_bit_flag(row.attr6, flag);
+    let check_attr7 = |flag: u32| has_bit_flag(row.attr7, flag);
     ParsedSpell {
-        id: raw_dbc.id,
-        spell_name: raw_dbc.spell_name.clone(),
-        spell_category_id: raw_dbc.spell_category_id,
-        dispel_type: raw_dbc.dispel_type,
-        mechanic: raw_dbc.mechanic,
+        id: row.id,
+        spell_name: row.spell_name.clone(),
+        spell_category: spell_dbc_categories_by_id
+            .get(&row.spell_category_id)
+            .cloned()
+            .clone(),
+        dispel_type: SpellDispelType::try_from(row.dispel_type)
+            .expect(format!("Illegal dispel type in spell_id {} dispel_type {}", row.id, row.dispel_type).as_str()),
+        mechanic: SpellMechanic::try_from(row.mechanic)
+            .expect(format!("Illegal mechanic in spell_id {} mechanic {}", row.id, row.mechanic).as_str()),
         attr0: SpellAttr0 {
             unk0: check_attr0(0x00000001),
             req_ammo: check_attr0(0x00000002),
@@ -329,24 +396,127 @@ fn process_raw_row(raw_dbc: SpellDbcRow) -> ParsedSpell {
             unk30: check_attr7(0x40000000),
             client_indicator: check_attr7(0x80000000),
         },
+        effect_1: if row.spell_effect_id_1 == 0 {
+            None
+        } else {
+            Some(SpellEffect {
+                id: row.spell_effect_id_1,
+                die_side_1: row.effect_die_side_1,
+                points_per_level: row.effect_points_per_level_1,
+                base_points: row.effect_base_points_1,
+                mechanic: row.effect_mechanic_1,
+                implicit_target_a: row.effect_implicit_target_a_1,
+                implicit_target_b: row.effect_implicit_target_b_1,
+                spell_radius: row.effect_spell_radius_id_1,
+                apply_aura: row.effect_apply_aura_1,
+                amplitude: row.effect_amplitude_1,
+                value_multiplier: row.effect_value_multiplier_1,
+                chain_target: row.effect_chain_target_1,
+                item_type: row.effect_item_type_1,
+                misc_value_a: row.effect_misc_value_1,
+                misc_value_b: row.effect_misc_value_b_1,
+                trigger_spell: row.effect_trigger_spell_1,
+                points_per_combo_point: row.effect_points_per_combo_point_1,
+                damage_multiplier: row.effect_damage_multiplier_1,
+                effect_bonus_multiplier: row.effect_bonus_multiplier_1,
+            })
+        },
+        effect_2: if row.spell_effect_id_2 == 0 {
+            None
+        } else {
+            Some(SpellEffect {
+                id: row.spell_effect_id_2,
+                die_side_1: row.effect_die_side_2,
+                points_per_level: row.effect_points_per_level_2,
+                base_points: row.effect_base_points_2,
+                mechanic: row.effect_mechanic_2,
+                implicit_target_a: row.effect_implicit_target_a_2,
+                implicit_target_b: row.effect_implicit_target_b_2,
+                spell_radius: row.effect_spell_radius_id_2,
+                apply_aura: row.effect_apply_aura_2,
+                amplitude: row.effect_amplitude_2,
+                value_multiplier: row.effect_value_multiplier_2,
+                chain_target: row.effect_chain_target_2,
+                item_type: row.effect_item_type_2,
+                misc_value_a: row.effect_misc_value_2,
+                misc_value_b: row.effect_misc_value_b_2,
+                trigger_spell: row.effect_trigger_spell_2,
+                points_per_combo_point: row.effect_points_per_combo_point_2,
+                damage_multiplier: row.effect_damage_multiplier_2,
+                effect_bonus_multiplier: row.effect_bonus_multiplier_2,
+            })
+        },
+        effect_3: if row.spell_effect_id_3 == 0 {
+            None
+        } else {
+            Some(SpellEffect {
+                id: row.spell_effect_id_3,
+                die_side_1: row.effect_die_side_3,
+                points_per_level: row.effect_points_per_level_3,
+                base_points: row.effect_base_points_3,
+                mechanic: row.effect_mechanic_3,
+                implicit_target_a: row.effect_implicit_target_a_3,
+                implicit_target_b: row.effect_implicit_target_b_3,
+                spell_radius: row.effect_spell_radius_id_3,
+                apply_aura: row.effect_apply_aura_3,
+                amplitude: row.effect_amplitude_3,
+                value_multiplier: row.effect_value_multiplier_3,
+                chain_target: row.effect_chain_target_3,
+                item_type: row.effect_item_type_3,
+                misc_value_a: row.effect_misc_value_3,
+                misc_value_b: row.effect_misc_value_b_3,
+                trigger_spell: row.effect_trigger_spell_3,
+                points_per_combo_point: row.effect_points_per_combo_point_3,
+                damage_multiplier: row.effect_damage_multiplier_3,
+                effect_bonus_multiplier: row.effect_bonus_multiplier_3,
+            })
+        },
+        spell_visual_1: spell_visuals_by_id
+            .get(&row.spell_visual_id_1)
+            .map(|v| v.clone()),
+        spell_visual_2: spell_visuals_by_id
+            .get(&row.spell_visual_id_2)
+            .cloned(),
     }
 }
 
+
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ParsedSpell {
-    pub id: u32,
-    pub spell_name: String,
-    pub spell_category_id: u32,
-    pub dispel_type: u32,
-    pub mechanic: u32,
-    pub attr0: SpellAttr0,
-    pub attr1: SpellAttr1,
-    pub attr2: SpellAttr2,
-    pub attr3: SpellAttr3,
-    pub attr4: SpellAttr4,
-    pub attr5: SpellAttr5,
-    pub attr6: SpellAttr6,
-    pub attr7: SpellAttr7,
+pub enum SpellDispelType
+{
+    DispelNone = 0,
+    DispelMagic = 1,
+    DispelCurse = 2,
+    DispelDisease = 3,
+    DispelPoison = 4,
+    DispelStealth = 5,
+    DispelInvisibility = 6,
+    DispelAll = 7,
+    DispelSpeNpcOnly = 8,
+    DispelEnrage = 9,
+    DispelZgTicket = 10,
+    DispelOldUnused = 11,
+}
+
+impl TryFrom<u32> for SpellDispelType {
+    type Error = ();
+    fn try_from(v: u32) -> Result<Self, Self::Error> {
+        Ok(match v {
+            0 => SpellDispelType::DispelNone,
+            1 => SpellDispelType::DispelMagic,
+            2 => SpellDispelType::DispelCurse,
+            3 => SpellDispelType::DispelDisease,
+            4 => SpellDispelType::DispelPoison,
+            5 => SpellDispelType::DispelStealth,
+            6 => SpellDispelType::DispelInvisibility,
+            7 => SpellDispelType::DispelAll,
+            8 => SpellDispelType::DispelSpeNpcOnly,
+            9 => SpellDispelType::DispelEnrage,
+            10 => SpellDispelType::DispelZgTicket,
+            11 => SpellDispelType::DispelOldUnused,
+            _ => return Err(())
+        })
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -387,146 +557,146 @@ pub struct SpellAttr0 {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpellAttr1 {
-    dismiss_pet: bool,
-    drain_all_power: bool,
-    channeled_1: bool,
-    cant_be_redirected: bool,
-    unk4: bool,
-    not_break_stealth: bool,
-    channeled_2: bool,
-    cant_be_reflected: bool,
-    cant_target_in_combat: bool,
-    melee_combat_start: bool,
-    no_threat: bool,
-    unk11: bool,
-    is_pickpocket: bool,
-    far_sight: bool,
-    channel_track_target: bool,
-    dispel_auras_on_immunity: bool,
-    unaffected_by_school_immune: bool,
-    unautocastable_by_pet: bool,
-    unk18: bool,
-    cant_target_self: bool,
-    req_combo_points1: bool,
-    unk21: bool,
-    req_combo_points2: bool,
-    unk23: bool,
-    is_fishing: bool,
-    unk25: bool,
-    unk26: bool,
-    unk27: bool,
-    dont_display_in_aura_bar: bool,
-    channel_display_spell_name: bool,
-    enable_at_dodge: bool,
-    unk31: bool,
+    pub dismiss_pet: bool,
+    pub drain_all_power: bool,
+    pub channeled_1: bool,
+    pub cant_be_redirected: bool,
+    pub unk4: bool,
+    pub not_break_stealth: bool,
+    pub channeled_2: bool,
+    pub cant_be_reflected: bool,
+    pub cant_target_in_combat: bool,
+    pub melee_combat_start: bool,
+    pub no_threat: bool,
+    pub unk11: bool,
+    pub is_pickpocket: bool,
+    pub far_sight: bool,
+    pub channel_track_target: bool,
+    pub dispel_auras_on_immunity: bool,
+    pub unaffected_by_school_immune: bool,
+    pub unautocastable_by_pet: bool,
+    pub unk18: bool,
+    pub cant_target_self: bool,
+    pub req_combo_points1: bool,
+    pub unk21: bool,
+    pub req_combo_points2: bool,
+    pub unk23: bool,
+    pub is_fishing: bool,
+    pub unk25: bool,
+    pub unk26: bool,
+    pub unk27: bool,
+    pub dont_display_in_aura_bar: bool,
+    pub channel_display_spell_name: bool,
+    pub enable_at_dodge: bool,
+    pub unk31: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpellAttr2 {
-    can_target_dead: bool,
-    unk1: bool,
-    can_target_not_in_los: bool,
-    unk3: bool,
-    display_in_stance_bar: bool,
-    auto_repeat_flag: bool,
-    cant_target_tapped: bool,
-    unk7: bool,
-    unk8: bool,
-    unk9: bool,
-    unk10: bool,
-    health_funnel: bool,
-    unk12: bool,
-    preserve_enchant_in_arena: bool,
-    unk14: bool,
-    unk15: bool,
-    tame_beast: bool,
-    not_reset_auto_actions: bool,
-    req_dead_pet: bool,
-    not_need_shapeshift: bool,
-    unk20: bool,
-    damage_reduced_shield: bool,
-    unk22: bool,
-    is_arcane_concentration: bool,
-    unk24: bool,
-    unk25: bool,
-    unk26: bool,
-    unk27: bool,
-    unk28: bool,
-    cant_crit: bool,
-    triggered_can_trigger_proc: bool,
-    food_buff: bool,
+    pub can_target_dead: bool,
+    pub unk1: bool,
+    pub can_target_not_in_los: bool,
+    pub unk3: bool,
+    pub display_in_stance_bar: bool,
+    pub auto_repeat_flag: bool,
+    pub cant_target_tapped: bool,
+    pub unk7: bool,
+    pub unk8: bool,
+    pub unk9: bool,
+    pub unk10: bool,
+    pub health_funnel: bool,
+    pub unk12: bool,
+    pub preserve_enchant_in_arena: bool,
+    pub unk14: bool,
+    pub unk15: bool,
+    pub tame_beast: bool,
+    pub not_reset_auto_actions: bool,
+    pub req_dead_pet: bool,
+    pub not_need_shapeshift: bool,
+    pub unk20: bool,
+    pub damage_reduced_shield: bool,
+    pub unk22: bool,
+    pub is_arcane_concentration: bool,
+    pub unk24: bool,
+    pub unk25: bool,
+    pub unk26: bool,
+    pub unk27: bool,
+    pub unk28: bool,
+    pub cant_crit: bool,
+    pub triggered_can_trigger_proc: bool,
+    pub food_buff: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpellAttr3 {
-    unk0: bool,
-    unk1: bool,
-    unk2: bool,
-    blockable_spell: bool,
-    ignore_resurrection_timer: bool,
-    unk5: bool,
-    unk6: bool,
-    stack_for_diff_casters: bool,
-    only_target_players: bool,
-    triggered_can_trigger_proc_2: bool,
-    main_hand: bool,
-    battleground: bool,
-    only_target_ghosts: bool,
-    dont_display_channel_bar: bool,
-    is_honorless_target: bool,
-    unk15: bool,
-    cant_trigger_proc: bool,
-    no_initial_aggro: bool,
-    ignore_hit_result: bool,
-    disable_proc: bool,
-    death_persistent: bool,
-    unk21: bool,
-    req_wand: bool,
-    unk23: bool,
-    req_offhand: bool,
-    no_pushback: bool,
-    can_proc_with_triggered: bool,
-    drain_soul: bool,
-    unk28: bool,
-    no_done_bonus: bool,
-    dont_display_range: bool,
-    unk31: bool,
+    pub unk0: bool,
+    pub unk1: bool,
+    pub unk2: bool,
+    pub blockable_spell: bool,
+    pub ignore_resurrection_timer: bool,
+    pub unk5: bool,
+    pub unk6: bool,
+    pub stack_for_diff_casters: bool,
+    pub only_target_players: bool,
+    pub triggered_can_trigger_proc_2: bool,
+    pub main_hand: bool,
+    pub battleground: bool,
+    pub only_target_ghosts: bool,
+    pub dont_display_channel_bar: bool,
+    pub is_honorless_target: bool,
+    pub unk15: bool,
+    pub cant_trigger_proc: bool,
+    pub no_initial_aggro: bool,
+    pub ignore_hit_result: bool,
+    pub disable_proc: bool,
+    pub death_persistent: bool,
+    pub unk21: bool,
+    pub req_wand: bool,
+    pub unk23: bool,
+    pub req_offhand: bool,
+    pub no_pushback: bool,
+    pub can_proc_with_triggered: bool,
+    pub drain_soul: bool,
+    pub unk28: bool,
+    pub no_done_bonus: bool,
+    pub dont_display_range: bool,
+    pub unk31: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpellAttr4 {
-    ignore_resistances: bool,
-    proc_only_on_caster: bool,
-    fades_while_logged_out: bool,
-    unk3: bool,
-    unk4: bool,
-    unk5: bool,
-    not_stealable: bool,
-    can_cast_while_casting: bool,
-    fixed_damage: bool,
-    trigger_activate: bool,
-    spell_vs_extend_cost: bool,
-    unk11: bool,
-    unk12: bool,
-    unk13: bool,
-    damage_doesnt_break_auras: bool,
-    unk15: bool,
-    not_usable_in_arena: bool,
-    usable_in_arena: bool,
-    area_target_chain: bool,
-    unk19: bool,
-    not_check_selfcast_power: bool,
-    unk21: bool,
-    unk22: bool,
-    cant_trigger_item_spells: bool,
-    unk24: bool,
-    is_pet_scaling: bool,
-    cast_only_in_outland: bool,
-    unk27: bool,
-    unk28: bool,
-    unk29: bool,
-    unk30: bool,
-    unk31: bool,
+    pub ignore_resistances: bool,
+    pub proc_only_on_caster: bool,
+    pub fades_while_logged_out: bool,
+    pub unk3: bool,
+    pub unk4: bool,
+    pub unk5: bool,
+    pub not_stealable: bool,
+    pub can_cast_while_casting: bool,
+    pub fixed_damage: bool,
+    pub trigger_activate: bool,
+    pub spell_vs_extend_cost: bool,
+    pub unk11: bool,
+    pub unk12: bool,
+    pub unk13: bool,
+    pub damage_doesnt_break_auras: bool,
+    pub unk15: bool,
+    pub not_usable_in_arena: bool,
+    pub usable_in_arena: bool,
+    pub area_target_chain: bool,
+    pub unk19: bool,
+    pub not_check_selfcast_power: bool,
+    pub unk21: bool,
+    pub unk22: bool,
+    pub cant_trigger_item_spells: bool,
+    pub unk24: bool,
+    pub is_pet_scaling: bool,
+    pub cast_only_in_outland: bool,
+    pub unk27: bool,
+    pub unk28: bool,
+    pub unk29: bool,
+    pub unk30: bool,
+    pub unk31: bool,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -635,4 +805,105 @@ pub struct SpellAttr7 {
     pub unk29: bool,
     pub unk30: bool,
     pub client_indicator: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum SpellMechanic
+{
+    MechanicNone = 0,
+    MechanicCharm = 1,
+    MechanicDisoriented = 2,
+    MechanicDisarm = 3,
+    MechanicDistract = 4,
+    MechanicFear = 5,
+    MechanicGrip = 6,
+    MechanicRoot = 7,
+    MechanicSlowAttack = 8,
+    MechanicSilence = 9,
+    MechanicSleep = 10,
+    MechanicSnare = 11,
+    MechanicStun = 12,
+    MechanicFreeze = 13,
+    MechanicKnockout = 14,
+    MechanicBleed = 15,
+    MechanicBandage = 16,
+    MechanicPolymorph = 17,
+    MechanicBanish = 18,
+    MechanicShield = 19,
+    MechanicShackle = 20,
+    MechanicMount = 21,
+    MechanicInfected = 22,
+    MechanicTurn = 23,
+    MechanicHorror = 24,
+    MechanicInvulnerability = 25,
+    MechanicInterrupt = 26,
+    MechanicDaze = 27,
+    MechanicDiscovery = 28,
+    MechanicImmuneShield = 29,
+    MechanicSapped = 30,
+    MechanicEnraged = 31,
+}
+
+impl TryFrom<u32> for SpellMechanic {
+    type Error = ();
+    fn try_from(v: u32) -> Result<Self, Self::Error> {
+        Ok(match v {
+            0 => SpellMechanic::MechanicNone,
+            1 => SpellMechanic::MechanicCharm,
+            2 => SpellMechanic::MechanicDisoriented,
+            3 => SpellMechanic::MechanicDisarm,
+            4 => SpellMechanic::MechanicDistract,
+            5 => SpellMechanic::MechanicFear,
+            6 => SpellMechanic::MechanicGrip,
+            7 => SpellMechanic::MechanicRoot,
+            8 => SpellMechanic::MechanicSlowAttack,
+            9 => SpellMechanic::MechanicSilence,
+            10 => SpellMechanic::MechanicSleep,
+            11 => SpellMechanic::MechanicSnare,
+            12 => SpellMechanic::MechanicStun,
+            13 => SpellMechanic::MechanicFreeze,
+            14 => SpellMechanic::MechanicKnockout,
+            15 => SpellMechanic::MechanicBleed,
+            16 => SpellMechanic::MechanicBandage,
+            17 => SpellMechanic::MechanicPolymorph,
+            18 => SpellMechanic::MechanicBanish,
+            19 => SpellMechanic::MechanicShield,
+            20 => SpellMechanic::MechanicShackle,
+            21 => SpellMechanic::MechanicMount,
+            22 => SpellMechanic::MechanicInfected,
+            23 => SpellMechanic::MechanicTurn,
+            24 => SpellMechanic::MechanicHorror,
+            25 => SpellMechanic::MechanicInvulnerability,
+            26 => SpellMechanic::MechanicInterrupt,
+            27 => SpellMechanic::MechanicDaze,
+            28 => SpellMechanic::MechanicDiscovery,
+            29 => SpellMechanic::MechanicImmuneShield,
+            30 => SpellMechanic::MechanicSapped,
+            31 => SpellMechanic::MechanicEnraged,
+            _ => return Err(())
+        })
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct SpellEffect {
+    pub id: u32,
+    pub die_side_1: u32,
+    pub points_per_level: f32,
+    pub base_points: u32,
+    pub mechanic: u32,
+    pub implicit_target_a: u32,
+    pub implicit_target_b: u32,
+    pub spell_radius: u32,
+    pub apply_aura: u32,
+    pub amplitude: u32,
+    pub value_multiplier: f32,
+    pub chain_target: u32,
+    pub item_type: u32,
+    pub misc_value_a: u32,
+    pub misc_value_b: u32,
+    pub trigger_spell: u32,
+    pub points_per_combo_point: f32,
+    pub damage_multiplier: f32,
+    pub effect_bonus_multiplier: f32,
 }
