@@ -69,16 +69,19 @@ pub fn get_spells_join(
     let spell_visual_kit_path = dbc_lookup.get("SpellVisualKit.dbc")?;
     let spell_visual_effect_name_path = dbc_lookup.get("SpellVisualEffectName.dbc")?;
 
-    let spells_dbc_rows = load_spell_dbc_from_path(spell_dbc_path)?.rows;
-    let spells_dbc_rows = if let Some(record_id) = record_id {
-        vec![spells_dbc_rows
-            .into_iter()
-            .find(|v| v.id == *record_id)
-            .ok_or(format!("Spell.dbc doesn't have a record with id = {}", record_id).as_str())?
-        ]
-    } else {
-        spells_dbc_rows
+    let spells_dbc_rows = {
+        let dbc_rows = load_spell_dbc_from_path(spell_dbc_path)?.rows;
+        if let Some(record_id) = record_id {
+            let single_row = dbc_rows
+                .into_iter()
+                .find(|v| v.id == *record_id)
+                .ok_or(format!("Spell.dbc doesn't have a record with id = {}", record_id).as_str())?;
+            vec![single_row]
+        } else {
+            dbc_rows
+        }
     };
+
     let spell_dbc_categories_by_id = HashMap::from_iter(
         load_spell_category_dbc_from_path(spell_category_path)?
             .rows
