@@ -14,8 +14,10 @@ use crate::formats::dbc::pvp_difficulty::PvpDifficulty;
 use crate::formats::dbc::game_object_display_info::GameObjectDisplayInfo;
 use crate::formats::dbc::spell::{SpellDbcRow};
 use std::path::Path;
-use crate::formats::dbc::spell_category::SpellCategory;
-use crate::formats::dbc::spell_visual::SpellVisual;
+use crate::formats::dbc::spell_category::SpellCategoryDbcRow;
+use crate::formats::dbc::spell_visual::SpellVisualDbcRow;
+use crate::formats::dbc::spell_visual_effect_name::SpellVisualEffectNameDbcRow;
+use crate::formats::dbc::spell_visual_kit::SpellVisualKitDbcRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -86,10 +88,18 @@ pub fn load_spell_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellDbcRow>> 
     load_dbc(path, Box::new(SpellDbcRow::process))
 }
 
-pub fn load_spell_category_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellCategory>> {
-    load_dbc(path, Box::new(SpellCategory::process))
+pub fn load_spell_category_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellCategoryDbcRow>> {
+    load_dbc(path, Box::new(SpellCategoryDbcRow::process))
 }
 
-pub fn load_spell_visual_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellVisual>> {
-    load_dbc(path, Box::new(SpellVisual::process))
+pub fn load_spell_visual_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellVisualDbcRow>> {
+    load_dbc(path, Box::new(SpellVisualDbcRow::process))
+}
+
+pub fn load_spell_visual_effect_name_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellVisualEffectNameDbcRow>> {
+    load_dbc(path, Box::new(SpellVisualEffectNameDbcRow::process))
+}
+
+pub fn load_spell_visual_kit_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellVisualKitDbcRow>> {
+    load_dbc(path, Box::new(SpellVisualKitDbcRow::process))
 }

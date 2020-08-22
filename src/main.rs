@@ -93,6 +93,9 @@ fn get_view_result(
             let file_name = extract_file_name(file_path_str);
             match file_name {
                 "Spell.dbc" => serialize_result(root_cmd, load_spell_dbc_from_path(file_path_str))?,
+                "SpellVisualKit.dbc" => serialize_result(root_cmd, load_spell_visual_kit_dbc_from_path(file_path_str))?,
+                "SpellVisualEffectName.dbc" => serialize_result(root_cmd, load_spell_visual_effect_name_dbc_from_path(file_path_str))?,
+                "SpellVisual.dbc" => serialize_result(root_cmd, load_spell_visual_dbc_from_path(file_path_str))?,
                 "GroundEffectDoodad.dbc" => serialize_result(root_cmd, load_ground_effect_doodad_from_path(file_path_str))?,
                 "GroundEffectTexture.dbc" => serialize_result(root_cmd, load_ground_effect_texture_from_path(file_path_str))?,
                 "BattlemasterList.dbc" => serialize_result(root_cmd, load_battle_master_list_from_path(file_path_str))?,

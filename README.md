@@ -38,6 +38,9 @@ The `view` command will dump the conversion of the binary file into JSON. Suppor
     - [x] GameObjectDisplayInfo.dbc
     - [x] PvpDifficulty.dbc
     - [x] Spell.dbc
+    - [x] SpellVisual.dbc
+    - [x] SpellVisualKit.dbc
+    - [x] SpellVisualEffectName.dbc
 * [x] ADT
 * [x] WDT
 * [x] WMO

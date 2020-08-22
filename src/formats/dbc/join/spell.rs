@@ -3,13 +3,15 @@ use serde::{Serialize, Deserialize};
 use crate::common::{R, err};
 use std::fs::{read_dir, DirEntry};
 use crate::formats::dbc::join::utils::{DbcLookup, has_bit_flag};
-use crate::formats::dbc::dbc::{load_spell_dbc_from_path, load_spell_category_dbc_from_path, load_spell_visual_dbc_from_path};
+use crate::formats::dbc::dbc::{load_spell_dbc_from_path, load_spell_category_dbc_from_path, load_spell_visual_dbc_from_path, load_spell_visual_kit_dbc_from_path, load_spell_visual_effect_name_dbc_from_path};
 use crate::formats::dbc::spell::SpellDbcRow;
 use std::convert::{TryFrom};
 use std::collections::HashMap;
 use std::iter::FromIterator;
-use crate::formats::dbc::spell_category::SpellCategory;
-use crate::formats::dbc::spell_visual::SpellVisual;
+use crate::formats::dbc::spell_category::SpellCategoryDbcRow;
+use crate::formats::dbc::spell_visual::SpellVisualDbcRow;
+use crate::formats::dbc::spell_visual_kit::SpellVisualKitDbcRow;
+use crate::formats::dbc::spell_visual_effect_name::SpellVisualEffectNameDbcRow;
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -21,7 +23,7 @@ pub struct SpellJoinResult {
 pub struct ParsedSpell {
     pub id: u32,
     pub spell_name: String,
-    pub spell_category: Option<SpellCategory>,
+    pub spell_category: Option<SpellCategoryDbcRow>,
     pub dispel_type: SpellDispelType,
     pub mechanic: SpellMechanic,
     pub attr0: SpellAttr0,
@@ -35,8 +37,8 @@ pub struct ParsedSpell {
     pub effect_1: Option<SpellEffect>,
     pub effect_2: Option<SpellEffect>,
     pub effect_3: Option<SpellEffect>,
-    pub spell_visual_1: Option<SpellVisual>,
-    pub spell_visual_2: Option<SpellVisual>,
+    pub spell_visual_1: Option<ParsedSpellVisual>,
+    pub spell_visual_2: Option<ParsedSpellVisual>,
 }
 
 pub fn get_spells_join(
@@ -64,6 +66,8 @@ pub fn get_spells_join(
     let spell_dbc_path = dbc_lookup.get("Spell.dbc")?;
     let spell_category_path = dbc_lookup.get("SpellCategory.dbc")?;
     let spell_visual_path = dbc_lookup.get("SpellVisual.dbc")?;
+    let spell_visual_kit_path = dbc_lookup.get("SpellVisualKit.dbc")?;
+    let spell_visual_effect_name_path = dbc_lookup.get("SpellVisualEffectName.dbc")?;
 
     let spells_dbc_rows = load_spell_dbc_from_path(spell_dbc_path)?.rows;
     let spells_dbc_rows = if let Some(record_id) = record_id {
@@ -85,7 +89,21 @@ pub fn get_spells_join(
         load_spell_visual_dbc_from_path(spell_visual_path)?
             .rows
             .into_iter()
-            .map(|category| (category.id, category))
+            .map(|visual| (visual.id, visual))
+    );
+
+    let spell_visual_kits_by_id = HashMap::from_iter(
+        load_spell_visual_kit_dbc_from_path(spell_visual_kit_path)?
+            .rows
+            .into_iter()
+            .map(|visual_kit| (visual_kit.id, visual_kit))
+    );
+
+    let spell_visual_effect_names_by_id = HashMap::from_iter(
+        load_spell_visual_effect_name_dbc_from_path(spell_visual_effect_name_path)?
+            .rows
+            .into_iter()
+            .map(|eff_name| (eff_name.id, eff_name))
     );
 
 
@@ -95,6 +113,8 @@ pub fn get_spells_join(
                 spell_dbc_row,
                 &spell_dbc_categories_by_id,
                 &spell_visuals_by_id,
+                &spell_visual_kits_by_id,
+                &spell_visual_effect_names_by_id,
             )
         ).collect()
     })
@@ -102,8 +122,10 @@ pub fn get_spells_join(
 
 fn process_raw_row(
     row: SpellDbcRow,
-    spell_dbc_categories_by_id: &HashMap<u32, SpellCategory>,
-    spell_visuals_by_id: &HashMap<u32, SpellVisual>,
+    spell_dbc_categories_by_id: &HashMap<u32, SpellCategoryDbcRow>,
+    spell_visuals_by_id: &HashMap<u32, SpellVisualDbcRow>,
+    spell_visual_kits_by_id: &HashMap<u32, SpellVisualKitDbcRow>,
+    spell_visual_effect_names_by_id: &HashMap<u32, SpellVisualEffectNameDbcRow>,
 ) -> ParsedSpell {
     let check_attr0 = |flag: u32| has_bit_flag(row.attr0, flag);
     let check_attr1 = |flag: u32| has_bit_flag(row.attr1, flag);
@@ -473,10 +495,20 @@ fn process_raw_row(
         },
         spell_visual_1: spell_visuals_by_id
             .get(&row.spell_visual_id_1)
-            .map(|v| v.clone()),
+            .cloned()
+            .map(|it| ParsedSpellVisual::from_dbc_spell_visual(
+                it,
+                spell_visual_kits_by_id,
+                spell_visual_effect_names_by_id,
+            )),
         spell_visual_2: spell_visuals_by_id
             .get(&row.spell_visual_id_2)
-            .cloned(),
+            .cloned()
+            .map(|it| ParsedSpellVisual::from_dbc_spell_visual(
+                it,
+                spell_visual_kits_by_id,
+                spell_visual_effect_names_by_id,
+            )),
     }
 }
 
@@ -906,4 +938,151 @@ pub struct SpellEffect {
     pub points_per_combo_point: f32,
     pub damage_multiplier: f32,
     pub effect_bonus_multiplier: f32,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ParsedSpellVisual {
+    pub id: u32,
+    pub pre_cast_kit: Option<ParsedSpellVisualKit>,
+    pub cast_kit: Option<ParsedSpellVisualKit>,
+    pub impact_kit: Option<ParsedSpellVisualKit>,
+    pub state_kit: Option<ParsedSpellVisualKit>,
+    pub state_done_kit: Option<ParsedSpellVisualKit>,
+    pub channel_kit: Option<ParsedSpellVisualKit>,
+    pub has_middle: bool,
+    pub missile_model_id: u32,
+    pub missile_path_type: u32,
+    pub missile_destination_attachment: u32,
+    pub missile_sound: u32,
+    pub anim_event_sound_id: u32,
+    pub flags: u32,
+    pub caster_impact_kit: Option<ParsedSpellVisualKit>,
+    pub target_impact_kit: Option<ParsedSpellVisualKit>,
+    pub missile_attachment: u32,
+    pub missile_follow_ground_height: u32,
+    pub missile_follow_ground_drop_speed: u32,
+    pub missile_follow_ground_approach: u32,
+    pub missile_follow_ground_flags: u32,
+    pub missile_motion: u32,
+    pub missile_targeting_kit: Option<ParsedSpellVisualKit>,
+    pub instant_area_kit: Option<ParsedSpellVisualKit>,
+    pub impact_area_kit: Option<ParsedSpellVisualKit>,
+    pub persistent_area_kit: Option<ParsedSpellVisualKit>,
+}
+
+impl ParsedSpellVisual {
+    fn from_dbc_spell_visual(
+        dbc_spell_visual: SpellVisualDbcRow,
+        spell_visual_kits_by_id: &HashMap<u32, SpellVisualKitDbcRow>,
+        spell_effect_names_by_id: &HashMap<u32, SpellVisualEffectNameDbcRow>,
+    ) -> ParsedSpellVisual {
+        let d = dbc_spell_visual;
+        ParsedSpellVisual {
+            id: d.id,
+            pre_cast_kit: ParsedSpellVisualKit::from_id(d.pre_cast_kit_id, spell_visual_kits_by_id, spell_effect_names_by_id),
+            cast_kit: ParsedSpellVisualKit::from_id(d.cast_kit_id, spell_visual_kits_by_id, spell_effect_names_by_id),
+            impact_kit: ParsedSpellVisualKit::from_id(d.impact_kit_id, spell_visual_kits_by_id, spell_effect_names_by_id),
+            state_kit: ParsedSpellVisualKit::from_id(d.state_kit_id, spell_visual_kits_by_id, spell_effect_names_by_id),
+            state_done_kit: ParsedSpellVisualKit::from_id(d.state_done_kit_id, spell_visual_kits_by_id, spell_effect_names_by_id),
+            channel_kit: ParsedSpellVisualKit::from_id(d.channel_kit_id, spell_visual_kits_by_id, spell_effect_names_by_id),
+            has_middle: d.has_middle,
+            missile_model_id: 0, // todo
+            missile_path_type: d.missile_path_type,
+            missile_destination_attachment: d.missile_destination_attachment,
+            missile_sound: d.missile_sound,
+            anim_event_sound_id: d.anim_event_sound_id,
+            flags: d.flags,
+            caster_impact_kit: ParsedSpellVisualKit::from_id(d.caster_impact_kit, spell_visual_kits_by_id, spell_effect_names_by_id),
+            target_impact_kit: ParsedSpellVisualKit::from_id(d.target_impact_kit, spell_visual_kits_by_id, spell_effect_names_by_id),
+            missile_attachment: d.missile_attachment,
+            missile_follow_ground_height: d.missile_follow_ground_height,
+            missile_follow_ground_drop_speed: d.missile_follow_ground_drop_speed,
+            missile_follow_ground_approach: d.missile_follow_ground_approach,
+            missile_follow_ground_flags: d.missile_follow_ground_flags,
+            missile_motion: d.missile_motion,
+            missile_targeting_kit: ParsedSpellVisualKit::from_id(d.missile_targeting_kit, spell_visual_kits_by_id, spell_effect_names_by_id),
+            instant_area_kit: ParsedSpellVisualKit::from_id(d.instant_area_kit, spell_visual_kits_by_id, spell_effect_names_by_id),
+            impact_area_kit: ParsedSpellVisualKit::from_id(d.impact_area_kit, spell_visual_kits_by_id, spell_effect_names_by_id),
+            persistent_area_kit: ParsedSpellVisualKit::from_id(d.persistent_area_kit, spell_visual_kits_by_id, spell_effect_names_by_id),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ParsedSpellVisualKit {
+    pub id: u32,
+    pub start_animation_id: u32,
+    pub animation_id: u32,
+    pub head_effect: Option<ParsedSpellEffectName>,
+    pub chest_effect: Option<ParsedSpellEffectName>,
+    pub base_effect: Option<ParsedSpellEffectName>,
+    pub left_hand_effect: Option<ParsedSpellEffectName>,
+    pub right_hand_effect: Option<ParsedSpellEffectName>,
+    pub breath_effect: Option<ParsedSpellEffectName>,
+    pub left_weapon_effect: Option<ParsedSpellEffectName>,
+    pub right_weapon_effect: Option<ParsedSpellEffectName>,
+    pub special_effect_1: Option<ParsedSpellEffectName>,
+    pub special_effect_2: Option<ParsedSpellEffectName>,
+    pub special_effect_3: Option<ParsedSpellEffectName>,
+    pub world_effect: Option<ParsedSpellEffectName>,
+    pub sound_id: u32,
+    pub shake_id: u32,
+    pub flags: u32,
+}
+
+impl ParsedSpellVisualKit {
+    fn from_id(
+        spell_visual_kit_id: u32,
+        spell_visual_kits_by_id: &HashMap<u32, SpellVisualKitDbcRow>,
+        spell_effect_names_by_id: &HashMap<u32, SpellVisualEffectNameDbcRow>,
+    ) -> Option<ParsedSpellVisualKit> {
+        if let Some(kit) = spell_visual_kits_by_id.get(&spell_visual_kit_id) {
+            Some(ParsedSpellVisualKit {
+                id: kit.id,
+                start_animation_id: kit.start_animation_id,
+                animation_id: kit.animation_id,
+                head_effect: ParsedSpellEffectName::from_id(kit.animation_id, spell_effect_names_by_id),
+                chest_effect: ParsedSpellEffectName::from_id(kit.chest_effect, spell_effect_names_by_id),
+                base_effect: ParsedSpellEffectName::from_id(kit.base_effect, spell_effect_names_by_id),
+                left_hand_effect: ParsedSpellEffectName::from_id(kit.left_hand_effect, spell_effect_names_by_id),
+                right_hand_effect: ParsedSpellEffectName::from_id(kit.right_hand_effect, spell_effect_names_by_id),
+                breath_effect: ParsedSpellEffectName::from_id(kit.breath_effect, spell_effect_names_by_id),
+                left_weapon_effect: ParsedSpellEffectName::from_id(kit.left_weapon_effect, spell_effect_names_by_id),
+                right_weapon_effect: ParsedSpellEffectName::from_id(kit.right_weapon_effect, spell_effect_names_by_id),
+                special_effect_1: ParsedSpellEffectName::from_id(kit.special_effect_1, spell_effect_names_by_id),
+                special_effect_2: ParsedSpellEffectName::from_id(kit.special_effect_2, spell_effect_names_by_id),
+                special_effect_3: ParsedSpellEffectName::from_id(kit.special_effect_3, spell_effect_names_by_id),
+                world_effect: ParsedSpellEffectName::from_id(kit.world_effect, spell_effect_names_by_id),
+                sound_id: 0,
+                shake_id: 0,
+                flags: 0,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ParsedSpellEffectName {
+    pub id: u32,
+    pub name: String,
+    pub file_name: String,
+}
+
+impl ParsedSpellEffectName {
+    fn from_id(
+        spell_effect_name_id: u32,
+        spell_effect_names_by_id: &HashMap<u32, SpellVisualEffectNameDbcRow>,
+    ) -> Option<ParsedSpellEffectName> {
+        if let Some(eff_name) = spell_effect_names_by_id.get(&spell_effect_name_id) {
+            Some(ParsedSpellEffectName {
+                id: eff_name.id,
+                name: eff_name.name.clone(),
+                file_name: eff_name.file_name.clone(),
+            })
+        } else {
+            None
+        }
+    }
 }

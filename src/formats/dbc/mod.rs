@@ -1,5 +1,7 @@
 pub mod join;
 pub mod spell;
+pub mod spell_visual_effect_name;
+pub mod spell_visual_kit;
 pub mod spell_category;
 pub mod map;
 pub mod dbc;
