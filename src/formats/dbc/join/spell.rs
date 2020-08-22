@@ -69,7 +69,7 @@ pub fn get_spells_join(
     let spell_visual_kit_path = dbc_lookup.get("SpellVisualKit.dbc")?;
     let spell_visual_effect_name_path = dbc_lookup.get("SpellVisualEffectName.dbc")?;
 
-    let spells_dbc_rows = {
+    let spell_dbc_rows = {
         let dbc_rows = load_spell_dbc_from_path(spell_dbc_path)?.rows;
         if let Some(record_id) = record_id {
             let single_row = dbc_rows
@@ -111,7 +111,7 @@ pub fn get_spells_join(
 
 
     Ok(SpellJoinResult {
-        spells: spells_dbc_rows.into_iter().map(|spell_dbc_row: SpellDbcRow|
+        spells: spell_dbc_rows.into_iter().map(|spell_dbc_row: SpellDbcRow|
             process_raw_row(
                 spell_dbc_row,
                 &spell_dbc_categories_by_id,
