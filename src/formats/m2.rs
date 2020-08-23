@@ -3,12 +3,32 @@ use crate::common::R;
 use std::path::{Path};
 use crate::byte_utils::VecUtils;
 
+
+#[derive(Debug, Serialize, Deserialize)]
+struct M2Array<T> {
+    pub size: u32,
+    pub offset: u32,
+    pub elements: Vec<T>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct M2Particle {
+    pub particle_id: u32,
+    pub flags: u32,
+    // pub pos: [f32; 3],
+    // pub bone: u16,
+    // pub texture: u16,
+    // pub geometry_model_filename: M2Array<char>,
+    // pub recursion_model_filename: M2Array<char>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct M2File {
     pub magic: String,
     pub version: u32,
     pub name: String,
     pub textures: Vec<String>,
+    pub particles: Vec<M2Particle>,
 }
 
 impl M2File {
@@ -44,12 +64,29 @@ impl M2File {
             }
         }
 
+        const PARTICLE_SIZE: u32 = 456;
+
+        let n_particles = bytes.get_u32(0x128)?;
+        let particle_offset = bytes.get_u32(0x12C)?;
+        let mut particle_builder = Vec::with_capacity(n_particles as usize);
+
+        for i in 0..n_particles {
+            let offset = (particle_offset + (i * PARTICLE_SIZE)) as usize;
+            let particle_id = bytes.get_u32(offset)?;
+            let flags = bytes.get_u32(offset + 4)?;
+            particle_builder.push(M2Particle {
+                particle_id,
+                flags,
+            });
+        }
+
 
         Ok(M2File {
             magic,
             version,
             name,
             textures: texture_builder,
+            particles: particle_builder
         })
     }
 }
