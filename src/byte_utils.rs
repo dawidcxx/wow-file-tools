@@ -26,8 +26,8 @@ impl VecUtils for Vec<u8> {
         Ok(parsed)
     }
 
-    fn get_string(&self, from: usize, to: usize) -> R<String> {
-        let bytes = &self[from..from + to];
+    fn get_string(&self, offset: usize, length: usize) -> R<String> {
+        let bytes = &self[offset..offset + length];
         let parsed: String = std::str::from_utf8(bytes)?
             .chars()
             .collect::<String>();

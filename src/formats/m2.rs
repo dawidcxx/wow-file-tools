@@ -14,12 +14,16 @@ struct M2Array<T> {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct M2Particle {
     pub particle_id: u32,
-    pub flags: u32,
-    // pub pos: [f32; 3],
-    // pub bone: u16,
-    // pub texture: u16,
-    // pub geometry_model_filename: M2Array<char>,
-    // pub recursion_model_filename: M2Array<char>,
+    pub flags_1: u16,
+    pub flags_2: u16,
+    pub pos: [f32; 3],
+    pub bone: u16,
+    pub texture_id: u16,
+    pub model_file_name: String,
+    pub particle_name: String,
+    pub blending_type: u8,
+    pub emitter_type: u8,
+    pub particle_dbc_color: u16,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -29,6 +33,7 @@ pub struct M2File {
     pub name: String,
     pub textures: Vec<String>,
     pub particles: Vec<M2Particle>,
+    pub n_particles: u32,
 }
 
 impl M2File {
@@ -64,7 +69,7 @@ impl M2File {
             }
         }
 
-        const PARTICLE_SIZE: u32 = 456;
+        const PARTICLE_SIZE: u32 = 476;
 
         let n_particles = bytes.get_u32(0x128)?;
         let particle_offset = bytes.get_u32(0x12C)?;
@@ -73,10 +78,43 @@ impl M2File {
         for i in 0..n_particles {
             let offset = (particle_offset + (i * PARTICLE_SIZE)) as usize;
             let particle_id = bytes.get_u32(offset)?;
-            let flags = bytes.get_u32(offset + 4)?;
+            let flags_1 = bytes.get_u16(offset + 4)?;
+            let flags_2 = bytes.get_u16(offset + 6)?;
+            let pos = {
+                let pos_1 = bytes.get_f32(offset + 8)?;
+                let pos_2 = bytes.get_f32(offset + 12)?;
+                let pos_3 = bytes.get_f32(offset + 16)?;
+                [pos_1, pos_2, pos_3]
+            };
+            let bone = bytes.get_u16(offset + 20)?;
+            let texture_id = bytes.get_u16(offset + 22)?;
+            let model_file_name = {
+                let len = bytes.get_u32(offset + 24)? as usize;
+                let offs = bytes.get_u32(offset + 28)? as usize;
+                bytes.get_string(offs, len)?
+            };
+            let particle_name = {
+                let len = bytes.get_u32(offset + 32)? as usize;
+                let offs = bytes.get_u32(offset + 36)? as usize;
+                bytes.get_string(offs, len)?
+            };
+
+            let blending_type = bytes.get_byte(offset + 40)?;
+            let emitter_type = bytes.get_byte(offset + 41)?;
+            let particle_dbc_color = bytes.get_u16(offset + 42)?;
+
             particle_builder.push(M2Particle {
                 particle_id,
-                flags,
+                flags_1,
+                flags_2,
+                pos,
+                bone,
+                model_file_name,
+                particle_name,
+                texture_id,
+                blending_type,
+                emitter_type,
+                particle_dbc_color,
             });
         }
 
@@ -86,7 +124,8 @@ impl M2File {
             version,
             name,
             textures: texture_builder,
-            particles: particle_builder
+            particles: particle_builder,
+            n_particles,
         })
     }
 }
