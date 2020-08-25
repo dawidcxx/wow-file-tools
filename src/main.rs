@@ -96,6 +96,7 @@ fn get_view_result(
                 "SpellVisualKit.dbc" => serialize_result(root_cmd, load_spell_visual_kit_dbc_from_path(file_path_str))?,
                 "SpellVisualEffectName.dbc" => serialize_result(root_cmd, load_spell_visual_effect_name_dbc_from_path(file_path_str))?,
                 "SpellVisual.dbc" => serialize_result(root_cmd, load_spell_visual_dbc_from_path(file_path_str))?,
+                "SpellIcon.dbc" => serialize_result(root_cmd, load_spell_icon_dbc_from_path(file_path_str))?,
                 "GroundEffectDoodad.dbc" => serialize_result(root_cmd, load_ground_effect_doodad_from_path(file_path_str))?,
                 "GroundEffectTexture.dbc" => serialize_result(root_cmd, load_ground_effect_texture_from_path(file_path_str))?,
                 "BattlemasterList.dbc" => serialize_result(root_cmd, load_battle_master_list_from_path(file_path_str))?,
@@ -107,6 +108,8 @@ fn get_view_result(
                 "LoadingScreens.dbc" => serialize_result(root_cmd, load_loading_screens_dbc_from_path(file_path_str))?,
                 "PvpDifficulty.dbc" => serialize_result(root_cmd, load_pvp_difficulty_from_path(file_path_str))?,
                 "GameObjectDisplayInfo.dbc" => serialize_result(root_cmd, load_game_object_display_info_from_path(file_path_str))?,
+                "Talent.dbc" => serialize_result(root_cmd, load_talent_dbc_from_path(file_path_str))?,
+                "TalentTab.dbc" => serialize_result(root_cmd, load_talent_tab_dbc_from_path(file_path_str))?,
                 _ => {
                     let err_msg = format!("Unsupported DBC file: ({})", file_name);
                     return Err(err_msg.into());
@@ -196,7 +199,7 @@ struct DbcJoinCmd {
     join: AggregateViewCmdChoice,
 
     #[clap(short = "r", long = "record-id")]
-    record_id: Option<u32>
+    record_id: Option<u32>,
 }
 
 enum AggregateViewCmdChoice {

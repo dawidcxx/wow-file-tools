@@ -1,5 +1,6 @@
 pub mod join;
 pub mod spell;
+pub mod spell_icon;
 pub mod spell_visual_effect_name;
 pub mod spell_visual_kit;
 pub mod spell_category;
@@ -16,6 +17,8 @@ pub mod ground_effect_doodad;
 pub mod pvp_difficulty;
 pub mod game_object_display_info;
 pub mod spell_visual;
+pub mod talent;
+pub mod talent_tab;
 
 use std::clone::Clone;
 use std::fs::File;

@@ -18,6 +18,9 @@ use crate::formats::dbc::spell_category::SpellCategoryDbcRow;
 use crate::formats::dbc::spell_visual::SpellVisualDbcRow;
 use crate::formats::dbc::spell_visual_effect_name::SpellVisualEffectNameDbcRow;
 use crate::formats::dbc::spell_visual_kit::SpellVisualKitDbcRow;
+use crate::formats::dbc::talent::TalentDbcRow;
+use crate::formats::dbc::talent_tab::TalentTabRow;
+use crate::formats::dbc::spell_icon::SpellIcon;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -102,4 +105,16 @@ pub fn load_spell_visual_effect_name_dbc_from_path<P: AsRef<Path>>(path: P) -> R
 
 pub fn load_spell_visual_kit_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellVisualKitDbcRow>> {
     load_dbc(path, Box::new(SpellVisualKitDbcRow::process))
+}
+
+pub fn load_talent_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<TalentDbcRow>> {
+    load_dbc(path, Box::new(TalentDbcRow::process))
+}
+
+pub fn load_talent_tab_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<TalentTabRow>> {
+    load_dbc(path, Box::new(TalentTabRow::process))
+}
+
+pub fn load_spell_icon_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellIcon>> {
+    load_dbc(path, Box::new(SpellIcon::process))
 }
