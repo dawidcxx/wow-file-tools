@@ -20,7 +20,7 @@ use crate::formats::dbc::spell_visual_effect_name::SpellVisualEffectNameDbcRow;
 use crate::formats::dbc::spell_visual_kit::SpellVisualKitDbcRow;
 use crate::formats::dbc::talent::TalentDbcRow;
 use crate::formats::dbc::talent_tab::TalentTabRow;
-use crate::formats::dbc::spell_icon::SpellIcon;
+use crate::formats::dbc::spell_icon::SpellIconDbcRow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Dbc<T> {
@@ -115,6 +115,6 @@ pub fn load_talent_tab_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<TalentTab
     load_dbc(path, Box::new(TalentTabRow::process))
 }
 
-pub fn load_spell_icon_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellIcon>> {
-    load_dbc(path, Box::new(SpellIcon::process))
+pub fn load_spell_icon_dbc_from_path<P: AsRef<Path>>(path: P) -> R<Dbc<SpellIconDbcRow>> {
+    load_dbc(path, Box::new(SpellIconDbcRow::process))
 }

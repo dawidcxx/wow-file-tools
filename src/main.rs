@@ -19,6 +19,7 @@ use crate::formats::wdt::WdtFile;
 use crate::formats::m2::M2File;
 use crate::resolve_map_assets::ResolveMapAssetsCmdResult;
 use crate::formats::dbc::join::spell::get_spells_join;
+use crate::formats::dbc::join::talents::get_talents_join;
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -63,6 +64,9 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
             match cmd.join {
                 AggregateViewCmdChoice::SPELLS => {
                     serialize_result(&root_cmd, get_spells_join(&cmd.dbc_folder, &cmd.record_id))?
+                }
+                AggregateViewCmdChoice::TALENTS => {
+                    serialize_result(&root_cmd, get_talents_join(&cmd.dbc_folder, &cmd.record_id))?
                 }
             }
         }
@@ -203,7 +207,8 @@ struct DbcJoinCmd {
 }
 
 enum AggregateViewCmdChoice {
-    SPELLS
+    SPELLS,
+    TALENTS,
 }
 
 impl std::str::FromStr for AggregateViewCmdChoice {
@@ -211,8 +216,9 @@ impl std::str::FromStr for AggregateViewCmdChoice {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_uppercase().as_str() {
             "SPELLS" => Ok(Self::SPELLS),
+            "TALENTS" => Ok(Self::TALENTS),
             _ => {
-                Err("Must be one of ( SPELLS )\n".into())
+                Err("Must be one of ( SPELLS, TALENTS )\n".into())
             }
         }
     }

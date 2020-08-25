@@ -1,8 +1,6 @@
-use std::path::{PathBuf};
 use serde::{Serialize, Deserialize};
-use crate::common::{R, err};
-use std::fs::{read_dir, DirEntry};
-use crate::formats::dbc::join::utils::{DbcLookup, has_bit_flag};
+use crate::common::{R};
+use crate::formats::dbc::join::utils::{has_bit_flag, common_join_command_validation};
 use crate::formats::dbc::dbc::{load_spell_dbc_from_path, load_spell_category_dbc_from_path, load_spell_visual_dbc_from_path, load_spell_visual_kit_dbc_from_path, load_spell_visual_effect_name_dbc_from_path};
 use crate::formats::dbc::spell::SpellDbcRow;
 use std::convert::{TryFrom};
@@ -45,23 +43,7 @@ pub fn get_spells_join(
     dbc_folder: &String,
     record_id: &Option<u32>,
 ) -> R<SpellJoinResult> {
-    let dbc_folder = PathBuf::from(dbc_folder);
-
-    if !dbc_folder.exists() {
-        return err(format!("Folder {} does not exist!", dbc_folder.to_string_lossy()));
-    }
-    let dbc_file_entries: Vec<DirEntry> = read_dir(&dbc_folder)?
-        .filter_map(|entry| entry.ok())
-        .filter(|entry| entry.file_name().to_string_lossy().ends_with(".dbc") ||
-            entry.file_name().to_string_lossy().ends_with(".DBC")
-        )
-        .collect();
-
-    if dbc_file_entries.is_empty() {
-        return err(format!("DBC Folder {} does not contain any DBC files!", dbc_folder.to_string_lossy()));
-    }
-
-    let dbc_lookup = DbcLookup::from_dbc_entries(dbc_file_entries);
+    let dbc_lookup = common_join_command_validation(&dbc_folder)?;
 
     let spell_dbc_path = dbc_lookup.get("Spell.dbc")?;
     let spell_category_path = dbc_lookup.get("SpellCategory.dbc")?;

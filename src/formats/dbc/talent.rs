@@ -4,14 +4,14 @@ use crate::common::R;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TalentDbcRow {
-    id: u32,
-    talent_tab_id: u32,
-    tier_id: u32,
-    column_index: u32,
-    spell_rank_ids: [u32; 9],
-    required_talent_ids: [u32; 3],
-    required_talent_point_rank_ids: [u32; 3],
-    only_one_point: bool,
+    pub id: u32,
+    pub talent_tab_id: u32,
+    pub tier: u32,
+    pub column_index: u32,
+    pub spell_rank_ids: [u32; 9],
+    pub required_talent_ids: [u32; 3],
+    pub required_talent_point_rank_ids: [u32; 3],
+    pub only_one_point: bool,
 }
 
 impl TalentDbcRow {
@@ -50,7 +50,7 @@ impl TalentDbcRow {
             row_builder.push(TalentDbcRow {
                 id,
                 talent_tab_id,
-                tier_id,
+                tier: tier_id,
                 column_index,
                 spell_rank_ids,
                 required_talent_ids,
