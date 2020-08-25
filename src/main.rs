@@ -199,7 +199,7 @@ struct DbcJoinCmd {
     #[clap(short = "d", long = "dbc-folder")]
     dbc_folder: String,
 
-    #[clap(short = "j", long = "join-name", help = "join to display, one of: SPELLS")]
+    #[clap(short = "j", long = "join-name", help = "join to display, one of: SPELLS, TALENTS")]
     join: AggregateViewCmdChoice,
 
     #[clap(short = "r", long = "record-id")]

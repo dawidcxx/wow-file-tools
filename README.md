@@ -1,29 +1,22 @@
 # About
 
-General purpose utility used @ [ArenaCraft](https://github.com/arenacraftwow). Mostly for manipulating client side files. This is not meant to be one tool but rather a collection of different tools sharing the same framework. 
+General purpose CLI utility. Mostly for manipulating client side files. This is not meant to be one tool but rather a collection of different tools sharing the same framework. Supports both linux & windows.
 
 # Features
 
 - ### Resolve Map assets
 
-The `resolve-map-assets` command will, for a given `map-id` output all the maps dependencies. The `map-id` referes to a entry in `Map.dbc`. 
+Output all of the map dependencies. The given `--map-ids` must be found in `Map.dbc`.
 
 ```
-FLAGS:
-    -h, --help                          Prints help information
-    -a, --make-result-paths-absolute    
-    -p, --prune-unused                  Remove unneeded files within the workspace
-    -V, --version                       Prints version information
-
 OPTIONS:
-    -m, --map-id <map-id>          
-    -w, --workspace <workspace>    
+    -m, --map-ids <map-id>...      
+    -w, --workspace <workspace>   
 ```
-
 
 - ### View Command
 
-The `view` command will dump the conversion of the binary file into JSON. Supported formats: 
+Dump the conversion of the binary file into JSON. Supported formats: 
 
 * DBC
     - [x] Map.dbc
@@ -49,6 +42,23 @@ The `view` command will dump the conversion of the binary file into JSON. Suppor
 * [x] WMO
 
 *Note:* some formats might be lacking fields
+
+```
+OPTIONS:
+    -f, --file <file>    
+```
+
+- ### DbcJoin Command
+
+Like the view command will output DBC info. However unlike the view command it will work across multiple files and join the results together to a more readable format. 
+
+
+```
+OPTIONS:
+    -d, --dbc-folder <dbc-folder>    
+    -j, --join-name <join>           join to display, one of: SPELLS, TALENTS
+    -r, --record-id <record-id> 
+```
 
 # Compiling
 
