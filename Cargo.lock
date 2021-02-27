@@ -24,6 +24,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf1de2fe8c75bc145a2f577add951f8134889b4795d47466a54a5c846d691693"
 
 [[package]]
+name = "cc"
+version = "1.0.67"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e3c69b077ad434294d3ce9f1f6143a2a4b89a8a2d54ef813d85003a4fd1137fd"
+
+[[package]]
 name = "clap"
 version = "3.0.0-beta.1"
 source = "git+https://github.com/clap-rs/clap/#1a8dc2e7456c3e2c02a7a1e09bdeddf1d91c6fc5"
@@ -51,6 +57,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "cmake"
+version = "0.1.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb6210b637171dfba4cda12e579ac6dc73f5165ad56133e5d72ef3131f320855"
+dependencies = [
+ "cc",
 ]
 
 [[package]]
@@ -201,6 +216,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "stormlib"
+version = "0.1.0"
+dependencies = [
+ "cmake",
+ "libc",
+]
+
+[[package]]
 name = "strsim"
 version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -326,5 +349,6 @@ dependencies = [
  "hex",
  "serde",
  "serde_json",
+ "stormlib",
  "walkdir",
 ]

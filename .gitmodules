@@ -1,0 +1,3 @@
+[submodule "stormlib/StormLib"]
+	path = stormlib/StormLib
+	url = https://github.com/ladislav-zezula/StormLib
