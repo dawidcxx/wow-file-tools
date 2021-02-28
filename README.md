@@ -4,7 +4,17 @@ General purpose CLI utility. Mostly for manipulating client side files. This is 
 
 # Features
 
-- ### Resolve Map assets
+
+- ## MPQ tool
+
+A sub-tool to work with MPQs. 
+
+Examples:
+ - Get the (listfile) `wow-file-tools mpq view -a  ./Work/patch-A.MPQ`
+ - Extract a file from the MPQ as hex `wow-file-tools mpq extract -a  ./Work/patch-A.MPQ -f "World\wmo\kalimdor\uldum\uldum_fishing_village.wmo"`
+ - Extract a file from the MPQ to disk `wow-file-tools mpq extract -a  ./Work/patch-A.MPQ -f "World\wmo\kalimdor\uldum\uldum_fishing_village.wmo" -t ./`
+
+- ## Resolve Map assets
 
 Output all of the map dependencies. The given `--map-ids` must be found in `Map.dbc`.
 
@@ -14,7 +24,7 @@ OPTIONS:
     -w, --workspace <workspace>   
 ```
 
-- ### View Command
+- ## View Command
 
 Dump the conversion of the binary file into JSON. Supported formats: 
 
@@ -48,7 +58,7 @@ OPTIONS:
     -f, --file <file>    
 ```
 
-- ### DbcJoin Command
+- ## DbcJoin Command
 
 Like the view command will output DBC info. However unlike the view command it will work across multiple files and join the results together to a more readable format. 
 
@@ -62,7 +72,15 @@ OPTIONS:
 
 # Compiling
 
-This is a [rust](https://www.rust-lang.org/) project. Should successfully compile with `rustc 1.43.0-nightly (75cf41afb 2020-03-04)`. To compile, run: 
+In order to compile this project you will need 
+
+- [rust](https://www.rust-lang.org/) language toolchain, successfully compiled with `rustc 1.43.0-nightly (75cf41afb 2020-03-04)` but other version should work fine as well
+- A C/C++ compiler
+- [CMake](https://cmake.org/)
+- (On linux)`bzip2` / `zlib`. Depending on the distro you most likely have them installed already.
+
+
+To compile, run: 
 
 `cargo build --release` 
 
