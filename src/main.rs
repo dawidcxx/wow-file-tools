@@ -5,6 +5,7 @@ pub mod byte_utils;
 pub mod formats;
 pub mod common;
 mod resolve_map_assets;
+mod mpq_tool;
 
 use clap::Clap;
 use crate::common::{R};
@@ -20,6 +21,7 @@ use crate::formats::m2::M2File;
 use crate::resolve_map_assets::ResolveMapAssetsCmdResult;
 use crate::formats::dbc::join::spell::get_spells_join;
 use crate::formats::dbc::join::talents::get_talents_join;
+use crate::mpq_tool::{view_mpq, extract_file_from_mpq, extract_file_from_mpq_to_path};
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -68,6 +70,30 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
                 AggregateViewCmdChoice::TALENTS => {
                     serialize_result(&root_cmd, get_talents_join(&cmd.dbc_folder, &cmd.record_id))?
                 }
+            }
+        }
+        Cmd::Mpq { cmd } => {
+            match cmd {
+                MpqToolCmd::View(view_cmd) => {
+                    serialize_result(&root_cmd, view_mpq(&view_cmd.archive_path))?
+                },
+                MpqToolCmd::Extract(extract_cmd) => {
+                    match &extract_cmd.target_path {
+                        Some(target_path) => {
+                            serialize_result(
+                                &root_cmd,
+                                extract_file_from_mpq_to_path(
+                                    &extract_cmd.archive_path,
+                                    &extract_cmd.archive_file_path,
+                                    target_path,
+                                ),
+                            )?
+                        }
+                        None => {
+                            serialize_result(&root_cmd, extract_file_from_mpq(&extract_cmd.archive_path, &extract_cmd.archive_file_path))?
+                        }
+                    }
+                },
             }
         }
     };
@@ -156,10 +182,10 @@ fn serialize_result(cmd: &RootCmd, result: R<impl Serialize>) -> R<String> {
 #[derive(Clap)]
 #[clap(version = "1.0", author = "ArenaCraft")]
 struct RootCmd {
-    #[clap(short = "c", long = "compact", help = "Output JSON will no longer be pretty printed")]
+    #[clap(short = 'c', long = "compact", about = "Output JSON will no longer be pretty printed")]
     compact: bool,
 
-    #[clap(long = "no-result", help = "Don't output any result, useful for testing")]
+    #[clap(long = "no-result", about = "Don't output any result, useful for testing")]
     no_result: bool,
 
     #[clap(subcommand)]
@@ -171,38 +197,69 @@ enum Cmd {
     View(ViewCmd),
     ResolveMapAssets(ResolveMapAssetsCmd),
     DbcJoin(DbcJoinCmd),
+    Mpq {
+        #[clap(subcommand)]
+        cmd: MpqToolCmd
+    },
+}
+
+#[derive(Clap)]
+#[clap(about = "A set of MPQ related tools")]
+enum MpqToolCmd {
+    View(MpqToolCmdView),
+    Extract(MpqToolCmdExtract),
+}
+
+#[derive(Clap)]
+#[clap(about = "Get the list of files contained in this archive")]
+struct MpqToolCmdView {
+    #[clap(short = 'a', long = "archive")]
+    archive_path: String,
+}
+
+#[derive(Clap)]
+#[clap(about = "Extract a single file from the archive, default prints it to std-out as a hex encoded json string")]
+struct MpqToolCmdExtract {
+    #[clap(short = 'a', long = "archive")]
+    archive_path: String,
+
+    #[clap(short = 'f', long = "file", about = "The archive path of the file to retrieve")]
+    archive_file_path: String,
+
+    #[clap(short = 't', long = "target", about = "Create this file and write retrieved contents to it")]
+    target_path: Option<String>,
 }
 
 #[derive(Clap)]
 #[clap(about = "View given file as JSON")]
 struct ViewCmd {
-    #[clap(short = "f", long = "file")]
+    #[clap(short = 'f', long = "file")]
     file: String,
 }
 
 #[derive(Clap)]
 #[clap(about = "Resolve all map dependencies")]
 pub struct ResolveMapAssetsCmd {
-    #[clap(short = "w", long = "workspace")]
+    #[clap(short = 'w', long = "workspace")]
     workspace: String,
 
-    #[clap(short = "m", long = "map-ids")]
+    #[clap(short = 'm', long = "map-ids")]
     map_id: Vec<u32>,
 
-    #[clap(short = "p", long = "prune-unused", help = "Remove unneeded files within the workspace")]
+    #[clap(short = 'p', long = "prune-unused", about = "Remove unneeded files within the workspace")]
     prune_unused: bool,
 }
 
 #[derive(Clap)]
 #[clap(about = "Show a joined view of multiple dbc files")]
 struct DbcJoinCmd {
-    #[clap(short = "d", long = "dbc-folder")]
+    #[clap(short = 'd', long = "dbc-folder")]
     dbc_folder: String,
 
-    #[clap(short = "j", long = "join-name", help = "join to display, one of: SPELLS, TALENTS")]
+    #[clap(short = 'j', long = "join-name", about = "join to display, one of: SPELLS, TALENTS")]
     join: AggregateViewCmdChoice,
 
-    #[clap(short = "r", long = "record-id")]
+    #[clap(short = 'r', long = "record-id")]
     record_id: Option<u32>,
 }
 
@@ -212,13 +269,13 @@ enum AggregateViewCmdChoice {
 }
 
 impl std::str::FromStr for AggregateViewCmdChoice {
-    type Err = Box<dyn Error>;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    type Err = &'static str;
+    fn from_str(s: &str) -> Result<Self, &'static str> {
         match s.to_uppercase().as_str() {
             "SPELLS" => Ok(Self::SPELLS),
             "TALENTS" => Ok(Self::TALENTS),
             _ => {
-                Err("Must be one of ( SPELLS, TALENTS )\n".into())
+                Err("Must be one of ( SPELLS, TALENTS )\n")
             }
         }
     }

@@ -11,9 +11,11 @@ use std::os::raw::c_uint;
 use std::os::raw::*;
 use std::fmt::{Debug, Formatter};
 use std::iter::FromIterator;
+use std::error::Error;
 
 pub struct MpqArchive {
     handle: bindings::HANDLE,
+    open_files: Vec<MpqFile>
 }
 
 pub struct MpqFile {
@@ -70,11 +72,11 @@ impl MpqArchive {
         if last_error != bindings::ERROR_SUCCESS {
             return Err(last_error.into());
         }
-        let mpq = MpqArchive { handle: ptr };
+        let mpq = MpqArchive { handle: ptr, open_files: vec![] };
         return Ok(mpq);
     }
 
-    pub fn get_file_list(&self) -> Result<Vec<String>, MpqErr> {
+    pub fn get_file_list(&mut self) -> Result<Vec<String>, MpqErr> {
         let list_file = self.get_file("(listfile)")?;
         let bytes = list_file.read_as_vec()?;
         let lines = bytes.split(|&byte| byte == 0x0a)
@@ -85,10 +87,20 @@ impl MpqArchive {
     }
 
     pub fn get_file(
-        &self,
+        &mut self,
         file_name: &str,
-    ) -> Result<MpqFile, MpqErr> {
+    ) -> Result<&MpqFile, MpqErr> {
         let c_file_path = CString::new(file_name).unwrap();
+
+        // check if file is present
+        unsafe {
+            let has_file = bindings::SFileHasFile(self.handle, c_file_path.as_ptr());
+            if !has_file {
+                let err = bindings::GetLastError();
+                return Err(err.into());
+            }
+        }
+
         let mut file_handle: bindings::HANDLE = ptr::null_mut();
         let result = unsafe {
             bindings::SFileOpenFileEx(self.handle, c_file_path.as_ptr(), 0, &mut file_handle)
@@ -100,13 +112,51 @@ impl MpqArchive {
         if last_error != bindings::ERROR_SUCCESS {
             return Err(last_error.into());
         }
-        return Ok(MpqFile { handle: file_handle });
+        let file = MpqFile { handle: file_handle };
+        self.open_files.push(file);
+
+        return Ok(self.open_files.last().unwrap());
     }
 }
 
 impl MpqFile {
-    pub fn read_as_vec(self) -> Result<Vec<u8>, MpqErr> {
-        let mut result = Vec::new();
+    pub fn get_full_file_name(&self) -> Result<String, MpqErr> {
+        let mut file_name_buf = [0 as c_char; bindings::MAX_PATH];
+        let file_name = unsafe {
+            let result = bindings::SFileGetFileName(self.handle, file_name_buf.as_mut_ptr().cast());
+            if !result {
+                let err_code = bindings::GetLastError();
+                return Err(err_code.into());
+            }
+        };
+        let file_name_raw = file_name_buf.iter()
+            .take_while(|&&it| it != 0)
+            .map(|&it| it as u8)
+            .collect();
+        Ok(unsafe { String::from_utf8_unchecked(file_name_raw) })
+    }
+
+    pub fn get_file_name(&self) -> Result<String, MpqErr> {
+        let full = self.get_full_file_name()?;
+        let f_name = full.split("\\")
+            .last()
+            .unwrap();
+        Ok(f_name.to_string())
+    }
+
+    pub fn size_in_bytes(&self) -> Result<usize, MpqErr> {
+        let mut size: bindings::DWORD = 0;
+        let result = unsafe { bindings::SFileGetFileSize(self.handle, &mut size) };
+        if result == bindings::SFILE_INVALID_SIZE {
+            let err = unsafe { bindings::GetLastError() };
+            return Err(err.into());
+        }
+        return Ok(size as usize);
+    }
+
+    pub fn read_as_vec(&self) -> Result<Vec<u8>, MpqErr> {
+        let size = self.size_in_bytes()?;
+        let mut result = Vec::with_capacity(size as usize);
         let mut buf = [0 as u8; 0x1000];
         let mut read_bytes: bindings::DWORD = 1;
         while read_bytes > 0 {
@@ -130,12 +180,23 @@ impl MpqFile {
                 result.extend_from_slice(&buf[0..(read_bytes as usize)]);
             }
         }
+
+        // reset file pointer for future reuse
+        unsafe {
+            let res = bindings::SFileSetFilePointer(self.handle, 0, ptr::null_mut(), bindings::FILE_BEGIN);
+            if res == bindings::SFILE_INVALID_SIZE {
+                let err = bindings::GetLastError();
+                return Err(err.into());
+            }
+        }
+
         return Ok(result);
     }
 }
 
 impl Drop for MpqArchive {
     fn drop(&mut self) {
+        self.open_files.clear();
         unsafe {
             bindings::SFileCloseArchive(self.handle);
         }
@@ -183,3 +244,12 @@ impl Into<MpqErr> for bindings::DWORD {
         }
     }
 }
+
+impl std::fmt::Display for MpqErr {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl Error for MpqErr {}
+
