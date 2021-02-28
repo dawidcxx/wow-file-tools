@@ -16,7 +16,9 @@ jobs:
       with:
         toolchain: nightly
         override: true
-    - uses: lukka/run-cmake@v3
+    - uses: jwlawson/actions-setup-cmake@v1.8
+      with:
+        - 3.19.x
     - name: Build
       run: cargo build --verbose --release
     - name: Run tests
