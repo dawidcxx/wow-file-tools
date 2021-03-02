@@ -831,22 +831,79 @@ pub const MAX_PATH: usize = 1024;
 pub const FILE_BEGIN: u32 = 0;
 pub const FILE_CURRENT: u32 = 1;
 pub const FILE_END: u32 = 2;
+
 pub const ERROR_SUCCESS: u32 = 0;
+
 pub const ERROR_FILE_NOT_FOUND: u32 = 2;
+
+#[cfg(linux)]
 pub const ERROR_ACCESS_DENIED: u32 = 1;
+#[cfg(windows)]
+pub const  ERROR_ACCESS_DENIED: u32 = 5;
+
+#[cfg(linux)]
 pub const ERROR_INVALID_HANDLE: u32 = 9;
+#[cfg(windows)]
+pub const ERROR_INVALID_HANDLE: u32 = 6;
+
+#[cfg(linux)]
 pub const ERROR_NOT_ENOUGH_MEMORY: u32 = 12;
+#[cfg(windows)]
+pub const ERROR_NOT_ENOUGH_MEMORY: u32 = 8;
+
+#[cfg(linux)]
 pub const ERROR_NOT_SUPPORTED: u32 = 95;
+#[cfg(windows)]
+pub const ERROR_NOT_SUPPORTED: u32 = 50;
+
+#[cfg(linux)]
 pub const ERROR_INVALID_PARAMETER: u32 = 22;
+#[cfg(windows)]
+pub const ERROR_INVALID_PARAMETER: u32 = 87;
+
+#[cfg(linux)]
 pub const ERROR_NEGATIVE_SEEK: u32 = 29;
+#[cfg(windows)]
+pub const ERROR_NEGATIVE_SEEK: u32 = 131;
+
+#[cfg(linux)]
 pub const ERROR_DISK_FULL: u32 = 28;
+#[cfg(windows)]
+pub const ERROR_DISK_FULL: u32 = 39;
+
+#[cfg(linux)]
 pub const ERROR_ALREADY_EXISTS: u32 = 17;
+#[cfg(windows)]
+pub const ERROR_ALREADY_EXISTS: u32 = 183;
+
+#[cfg(linux)]
 pub const ERROR_INSUFFICIENT_BUFFER: u32 = 105;
+#[cfg(windows)]
+pub const ERROR_INSUFFICIENT_BUFFER: u32 = 122;
+
+#[cfg(linux)]
 pub const ERROR_BAD_FORMAT: u32 = 1000;
+#[cfg(windows)]
+pub const ERROR_BAD_FORMAT: u32 = 11;
+
+#[cfg(linux)]
 pub const ERROR_NO_MORE_FILES: u32 = 1001;
+#[cfg(windows)]
+pub const ERROR_NO_MORE_FILES: u32 = 18;
+
+#[cfg(linux)]
 pub const ERROR_HANDLE_EOF: u32 = 1002;
+#[cfg(windows)]
+pub const ERROR_HANDLE_EOF: u32 =  38;
+
 pub const ERROR_CAN_NOT_COMPLETE: u32 = 1003;
+
+#[cfg(linux)]
 pub const ERROR_FILE_CORRUPT: u32 = 1004;
+#[cfg(windows)]
+pub const ERROR_FILE_CORRUPT: u32 = 1392;
+
+
 pub const STORMLIB_VERSION: u32 = 2327;
 pub const STORMLIB_VERSION_STRING: &'static [u8; 5usize] = b"9.23\0";
 pub const ID_MPQ: u32 = 441536589;
