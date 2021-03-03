@@ -5,17 +5,17 @@
 
 mod bindings;
 
+use std::error::Error;
 use std::ffi::CString;
-use std::ptr;
-use std::os::raw::c_uint;
-use std::os::raw::*;
 use std::fmt::{Debug, Formatter};
 use std::iter::FromIterator;
-use std::error::Error;
+use std::os::raw::c_uint;
+use std::os::raw::*;
+use std::ptr;
 
 pub struct MpqArchive {
     handle: bindings::HANDLE,
-    open_files: Vec<MpqFile>
+    open_files: Vec<MpqFile>,
 }
 
 pub struct MpqFile {
@@ -50,46 +50,29 @@ pub enum MpqErr {
     UnknownFileNames,
     CantFindPatchPrefix,
     FakeMpqHeader,
-
 }
 
 impl MpqArchive {
     pub fn from_path(mpq_path: &str) -> Result<MpqArchive, MpqErr> {
-        let c_mpq_path = CString::new(mpq_path).unwrap();
-        let mut ptr: bindings::HANDLE = ptr::null_mut();
-        let result = unsafe {
-            bindings::SFileOpenArchive(
-                c_mpq_path.as_ptr(),
-                0,
-                0,
-                &mut ptr,
-            )
-        };
-        let mut last_error: bindings::DWORD = bindings::ERROR_SUCCESS;
-        if !result {
-            last_error = unsafe { bindings::GetLastError() };
-        }
-        if last_error != bindings::ERROR_SUCCESS {
-            return Err(last_error.into());
-        }
-        let mpq = MpqArchive { handle: ptr, open_files: vec![] };
-        return Ok(mpq);
+        return Self::from_path_internal(mpq_path, 0);
+    }
+
+    pub fn from_path_readonly(mpq_path: &str) -> Result<MpqArchive, MpqErr> {
+        return Self::from_path_internal(mpq_path, bindings::MPQ_FLAG_READ_ONLY);
     }
 
     pub fn get_file_list(&mut self) -> Result<Vec<String>, MpqErr> {
         let list_file = self.get_file("(listfile)")?;
         let bytes = list_file.read_as_vec()?;
-        let lines = bytes.split(|&byte| byte == 0x0a)
+        let lines = bytes
+            .split(|&byte| byte == 0x0a)
             .filter(|line| line.len() > 0)
             .filter_map(|line| String::from_utf8(line[0..line.len() - 1].to_vec()).ok())
             .collect();
         Ok(lines)
     }
 
-    pub fn get_file(
-        &mut self,
-        file_name: &str,
-    ) -> Result<&MpqFile, MpqErr> {
+    pub fn get_file(&mut self, file_name: &str) -> Result<&MpqFile, MpqErr> {
         let c_file_path = CString::new(file_name).unwrap();
 
         // check if file is present
@@ -112,10 +95,30 @@ impl MpqArchive {
         if last_error != bindings::ERROR_SUCCESS {
             return Err(last_error.into());
         }
-        let file = MpqFile { handle: file_handle };
+        let file = MpqFile {
+            handle: file_handle,
+        };
         self.open_files.push(file);
 
         return Ok(self.open_files.last().unwrap());
+    }
+
+    fn from_path_internal(mpq_path: &str, flags: bindings::DWORD) -> Result<MpqArchive, MpqErr> {
+        let c_mpq_path = CString::new(mpq_path).unwrap();
+        let mut ptr: bindings::HANDLE = ptr::null_mut();
+        let result = unsafe { bindings::SFileOpenArchive(c_mpq_path.as_ptr(), 0, flags, &mut ptr) };
+        let mut last_error: bindings::DWORD = bindings::ERROR_SUCCESS;
+        if !result {
+            last_error = unsafe { bindings::GetLastError() };
+        }
+        if last_error != bindings::ERROR_SUCCESS {
+            return Err(last_error.into());
+        }
+        let mpq = MpqArchive {
+            handle: ptr,
+            open_files: vec![],
+        };
+        return Ok(mpq);
     }
 }
 
@@ -129,7 +132,8 @@ impl MpqFile {
                 return Err(err_code.into());
             }
         };
-        let file_name_raw = file_name_buf.iter()
+        let file_name_raw = file_name_buf
+            .iter()
             .take_while(|&&it| it != 0)
             .map(|&it| it as u8)
             .collect();
@@ -138,9 +142,7 @@ impl MpqFile {
 
     pub fn get_file_name(&self) -> Result<String, MpqErr> {
         let full = self.get_full_file_name()?;
-        let f_name = full.split("\\")
-            .last()
-            .unwrap();
+        let f_name = full.split("\\").last().unwrap();
         Ok(f_name.to_string())
     }
 
@@ -172,7 +174,8 @@ impl MpqFile {
             if !read_result {
                 let mut last_error: bindings::DWORD = bindings::ERROR_SUCCESS;
                 last_error = unsafe { bindings::GetLastError() };
-                if last_error != bindings::ERROR_SUCCESS && last_error != bindings::ERROR_HANDLE_EOF {
+                if last_error != bindings::ERROR_SUCCESS && last_error != bindings::ERROR_HANDLE_EOF
+                {
                     return Err(last_error.into());
                 }
             }
@@ -183,7 +186,12 @@ impl MpqFile {
 
         // reset file pointer for future reuse
         unsafe {
-            let res = bindings::SFileSetFilePointer(self.handle, 0, ptr::null_mut(), bindings::FILE_BEGIN);
+            let res = bindings::SFileSetFilePointer(
+                self.handle,
+                0,
+                ptr::null_mut(),
+                bindings::FILE_BEGIN,
+            );
             if res == bindings::SFILE_INVALID_SIZE {
                 let err = bindings::GetLastError();
                 return Err(err.into());
@@ -240,7 +248,7 @@ impl Into<MpqErr> for bindings::DWORD {
             bindings::ERROR_UNKNOWN_FILE_NAMES => MpqErr::UnknownFileNames,
             bindings::ERROR_CANT_FIND_PATCH_PREFIX => MpqErr::CantFindPatchPrefix,
             bindings::ERROR_FAKE_MPQ_HEADER => MpqErr::FakeMpqHeader,
-            _ => panic!("Received unsupported stormlib error code - {}", self)
+            _ => panic!("Received unsupported stormlib error code - {}", self),
         }
     }
 }
@@ -252,4 +260,3 @@ impl std::fmt::Display for MpqErr {
 }
 
 impl Error for MpqErr {}
-

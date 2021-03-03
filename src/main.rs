@@ -1,9 +1,12 @@
 #![feature(backtrace)]
 #![feature(fn_traits)]
+#![feature(drain_filter)]
+
 
 pub mod byte_utils;
 pub mod formats;
 pub mod common;
+pub mod mpq_path;
 mod resolve_map_assets;
 mod mpq_tool;
 
@@ -21,7 +24,7 @@ use crate::formats::m2::M2File;
 use crate::resolve_map_assets::ResolveMapAssetsCmdResult;
 use crate::formats::dbc::join::spell::get_spells_join;
 use crate::formats::dbc::join::talents::get_talents_join;
-use crate::mpq_tool::{view_mpq, extract_file_from_mpq, extract_file_from_mpq_to_path};
+use crate::mpq_tool::{view_mpq, extract_file_from_mpq, extract_file_from_mpq_to_path, extract_mpq_tree};
 
 fn main() {
     let root_cmd = RootCmd::parse();
@@ -94,6 +97,9 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
                         }
                     }
                 },
+                MpqToolCmd::ExtractTree(cmd) => {
+                    serialize_result(&root_cmd,  extract_mpq_tree(&cmd.archive_path, &cmd.tree, &cmd.dest))?
+                }
             }
         }
     };
@@ -208,6 +214,7 @@ enum Cmd {
 enum MpqToolCmd {
     View(MpqToolCmdView),
     Extract(MpqToolCmdExtract),
+    ExtractTree(MpqToolCmdExtractTree),
 }
 
 #[derive(Clap)]
@@ -228,6 +235,20 @@ struct MpqToolCmdExtract {
 
     #[clap(short = 't', long = "target", about = "Create this file and write retrieved contents to it")]
     target_path: Option<String>,
+}
+
+
+#[derive(Clap)]
+#[clap(about = "Get the list of files contained in this archive")]
+struct MpqToolCmdExtractTree {
+    #[clap(short = 'a', long = "archive")]
+    pub archive_path: String,
+    
+    #[clap(short = 't', long = "tree")]
+    pub tree: String,
+
+    #[clap(short = 'd', long = "dest")]
+    pub dest: String,
 }
 
 #[derive(Clap)]
