@@ -6,9 +6,8 @@
 pub mod byte_utils;
 pub mod formats;
 pub mod common;
-pub mod mpq_path;
+pub mod mpq;
 mod resolve_map_assets;
-mod mpq_tool;
 
 use clap::Clap;
 use crate::common::{R};
@@ -24,7 +23,7 @@ use crate::formats::m2::M2File;
 use crate::resolve_map_assets::ResolveMapAssetsCmdResult;
 use crate::formats::dbc::join::spell::get_spells_join;
 use crate::formats::dbc::join::talents::get_talents_join;
-use crate::mpq_tool::{view_mpq, extract_file_from_mpq, extract_file_from_mpq_to_path, extract_mpq_tree};
+use crate::mpq::{view_mpq, extract_file_from_mpq, extract_file_from_mpq_to_path, extract_mpq_tree};
 
 fn main() {
     let root_cmd = RootCmd::parse();

@@ -1,5 +1,7 @@
+pub mod mpq_path;
+
 use crate::common::{err, R};
-use crate::mpq_path::*;
+use crate::mpq::mpq_path::*;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
 use std::io::{Write};
