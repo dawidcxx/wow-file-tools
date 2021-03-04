@@ -1,10 +1,8 @@
 use crate::common::{err, R};
 use crate::mpq_path::*;
 use serde::{Deserialize, Serialize};
-use std::fs::File;
 use std::fs::OpenOptions;
-use std::io::prelude::*;
-use std::io::Write;
+use std::io::{Write};
 use std::path::PathBuf;
 use stormlib::{MpqArchive, MpqFile};
 
