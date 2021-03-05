@@ -67,15 +67,16 @@ pub struct WmoGroupFile {
 }
 
 impl WmoFile {
-    pub fn from_path(path: &str) -> R<WmoFile> {
-        let chunks = Chunk::from_path(path)?;
+    pub fn from_path<P: AsRef<Path>>(path: P) -> R<WmoFile> {
+        let path = path.as_ref().to_path_buf();
+        let chunks = Chunk::from_path(&path)?;
         let variant = WmoFileVariant::new(chunks)?;
         match variant {
             WmoFileVariant::ROOT(root_file) => {
                 // ok we have a root file,
                 // load the dependent groups
-                let parent_dir = Path::new(path).parent().unwrap();
-                let original_file_name = Path::new(path).file_name().unwrap().to_str().unwrap();
+                let parent_dir = path.parent().unwrap();
+                let original_file_name = path.file_name().unwrap().to_str().unwrap();
 
                 let (groups, loaded_group_files) = WmoFile::get_groups(parent_dir, original_file_name, &root_file);
 
