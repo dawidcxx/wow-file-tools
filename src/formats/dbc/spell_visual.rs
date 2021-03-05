@@ -1,6 +1,5 @@
-use serde::{Deserialize, Serialize};
-use crate::formats::dbc::{DbcFile};
 use crate::common::R;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone)]
 pub struct SpellVisualDbcRow {
@@ -32,64 +31,61 @@ pub struct SpellVisualDbcRow {
     pub persistent_area_kit: u32,
 }
 
-impl SpellVisualDbcRow {
-    pub fn process(row_builder: &mut Vec<SpellVisualDbcRow>, dbc_file: &DbcFile) -> R<()> {
-        for row in *&dbc_file {
-            let id = row.get_number_column(1)?;
-            let pre_cast_kit_id = row.get_number_column(2)?;
-            let cast_kit_id = row.get_number_column(3)?;
-            let impact_kit_id = row.get_number_column(4)?;
-            let state_kit_id = row.get_number_column(5)?;
-            let state_done_kit_id = row.get_number_column(6)?;
-            let channel_kit_id = row.get_number_column(7)?;
-            let has_middle = row.get_bool_column(8)?;
-            let missile_model_id = row.get_number_column(9)?;
-            let missile_path_type= row.get_number_column(10)?;
-            let missile_destination_attachment= row.get_number_column(11)?;
-            let missile_sound= row.get_number_column(12)?;
-            let anim_event_sound_id= row.get_number_column(13)?;
-            let flags= row.get_number_column(14)?;
-            let caster_impact_kit= row.get_number_column(15)?;
-            let target_impact_kit= row.get_number_column(16)?;
-            let missile_attachment= row.get_number_column(17)?;
-            let missile_follow_ground_height= row.get_number_column(18)?;
-            let missile_follow_ground_drop_speed= row.get_number_column(19)?;
-            let missile_follow_ground_approach= row.get_number_column(20)?;
-            let missile_follow_ground_flags= row.get_number_column(21)?;
-            let missile_motion= row.get_number_column(22)?;
-            let missile_targeting_kit= row.get_number_column(23)?;
-            let instant_area_kit= row.get_number_column(24)?;
-            let impact_area_kit= row.get_number_column(25)?;
-            let persistent_area_kit= row.get_number_column(26)?;
-            row_builder.push(SpellVisualDbcRow {
-                id,
-                pre_cast_kit_id,
-                cast_kit_id,
-                impact_kit_id,
-                state_kit_id,
-                state_done_kit_id,
-                channel_kit_id,
-                has_middle,
-                missile_model_id,
-                missile_path_type,
-                missile_destination_attachment,
-                missile_sound,
-                anim_event_sound_id,
-                flags,
-                caster_impact_kit,
-                target_impact_kit,
-                missile_attachment,
-                missile_follow_ground_height,
-                missile_follow_ground_drop_speed,
-                missile_follow_ground_approach,
-                missile_follow_ground_flags,
-                missile_motion,
-                missile_targeting_kit,
-                instant_area_kit,
-                impact_area_kit,
-                persistent_area_kit
-            })
-        }
-        Ok(())
+impl super::dbc::DbcRowMapper for SpellVisualDbcRow {
+    fn map_dbc_row(row: &super::DbcFileIteratorRow) -> R<Self> {
+        let id = row.get_number_column(1)?;
+        let pre_cast_kit_id = row.get_number_column(2)?;
+        let cast_kit_id = row.get_number_column(3)?;
+        let impact_kit_id = row.get_number_column(4)?;
+        let state_kit_id = row.get_number_column(5)?;
+        let state_done_kit_id = row.get_number_column(6)?;
+        let channel_kit_id = row.get_number_column(7)?;
+        let has_middle = row.get_bool_column(8)?;
+        let missile_model_id = row.get_number_column(9)?;
+        let missile_path_type = row.get_number_column(10)?;
+        let missile_destination_attachment = row.get_number_column(11)?;
+        let missile_sound = row.get_number_column(12)?;
+        let anim_event_sound_id = row.get_number_column(13)?;
+        let flags = row.get_number_column(14)?;
+        let caster_impact_kit = row.get_number_column(15)?;
+        let target_impact_kit = row.get_number_column(16)?;
+        let missile_attachment = row.get_number_column(17)?;
+        let missile_follow_ground_height = row.get_number_column(18)?;
+        let missile_follow_ground_drop_speed = row.get_number_column(19)?;
+        let missile_follow_ground_approach = row.get_number_column(20)?;
+        let missile_follow_ground_flags = row.get_number_column(21)?;
+        let missile_motion = row.get_number_column(22)?;
+        let missile_targeting_kit = row.get_number_column(23)?;
+        let instant_area_kit = row.get_number_column(24)?;
+        let impact_area_kit = row.get_number_column(25)?;
+        let persistent_area_kit = row.get_number_column(26)?;
+        Ok(SpellVisualDbcRow {
+            id,
+            pre_cast_kit_id,
+            cast_kit_id,
+            impact_kit_id,
+            state_kit_id,
+            state_done_kit_id,
+            channel_kit_id,
+            has_middle,
+            missile_model_id,
+            missile_path_type,
+            missile_destination_attachment,
+            missile_sound,
+            anim_event_sound_id,
+            flags,
+            caster_impact_kit,
+            target_impact_kit,
+            missile_attachment,
+            missile_follow_ground_height,
+            missile_follow_ground_drop_speed,
+            missile_follow_ground_approach,
+            missile_follow_ground_flags,
+            missile_motion,
+            missile_targeting_kit,
+            instant_area_kit,
+            impact_area_kit,
+            persistent_area_kit,
+        })
     }
 }
