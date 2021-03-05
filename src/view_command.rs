@@ -1,9 +1,11 @@
+use anyhow::Context;
 use crate::formats::adt::AdtFile;
 use crate::formats::dbc::dbc::*;
 use crate::formats::m2::M2File;
 use crate::formats::wdt::WdtFile;
 use crate::formats::wmo::WmoFile;
 use crate::{common::R, ViewCmd};
+use crate::common::err;
 use std::{ops::Deref, path::PathBuf};
 
 pub fn handle_view_command(view_cmd: &ViewCmd) -> R<Box<dyn erased_serde::Serialize>> {
@@ -11,11 +13,11 @@ pub fn handle_view_command(view_cmd: &ViewCmd) -> R<Box<dyn erased_serde::Serial
     let extension = file_path
         .extension()
         .map(|e| e.to_string_lossy().to_lowercase())
-        .ok_or("Given file doesn't have a valid extension")?;
+        .context("Given file doesn't have a valid extension")?;
     let file_name = file_path
         .file_name()
         .map(|e| e.to_string_lossy())
-        .ok_or("Given file is missing a filename")?;
+        .context("Given file is missing a filename")?;
 
     let result: Box<dyn erased_serde::Serialize> = match extension.deref() {
         "dbc" => match file_name.deref() {
@@ -42,8 +44,7 @@ pub fn handle_view_command(view_cmd: &ViewCmd) -> R<Box<dyn erased_serde::Serial
             "Talent.dbc" => Box::new(load_talent_dbc_from_path(file_path)?),
             "TalentTab.dbc" => Box::new(load_talent_tab_dbc_from_path(file_path)?),
             _ => {
-                let err_msg = format!("Unsupported DBC file: `{}`", file_name);
-                return Err(err_msg.into());
+                return err(format!("Unsupported DBC file: `{}`", file_name))
             }
         },
         "wdt" => Box::new(WdtFile::from_path(file_path)?),
@@ -51,8 +52,7 @@ pub fn handle_view_command(view_cmd: &ViewCmd) -> R<Box<dyn erased_serde::Serial
         "adt" => Box::new(AdtFile::from_path(file_path)?),
         "m2" => Box::new(M2File::from_path(file_path)?),
         _ => {
-            let err_msg = format!("Unsupported file extension: `{}`", extension);
-            return Err(err_msg.into());
+            return err(format!("Unsupported file extension: `{}`", extension));
         }
     };
 

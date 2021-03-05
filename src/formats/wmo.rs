@@ -1,4 +1,4 @@
-use crate::common::R;
+use crate::common::{R, err};
 use crate::formats::chunk::{Chunk, ChunkMver, ChunkVecUtils, ChunkMotx, ChunkMogn, ChunkModn, ChunkMohd, ChunkMolr};
 use serde::{Serialize, Deserialize};
 use std::collections::HashSet;
@@ -87,7 +87,7 @@ impl WmoFile {
                 })
             }
             WmoFileVariant::GROUP(_) => {
-                Err("WmoFile#from_path: Given WMO must a be root type WMO.".into())
+                return err("WmoFile#from_path: Given WMO must a be root type WMO.".to_string())
             }
         }
     }

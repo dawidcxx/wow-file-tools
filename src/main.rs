@@ -10,24 +10,21 @@ mod resolve_map_assets;
 mod view_command;
 
 use crate::common::R;
-
 use crate::formats::dbc::join::spell::get_spells_join;
 use crate::formats::dbc::join::talents::get_talents_join;
 use crate::mpq::{
     extract_file_from_mpq, extract_file_from_mpq_to_path, extract_mpq_tree, view_mpq,
 };
-use crate::resolve_map_assets::ResolveMapAssetsCmdResult;
 use crate::view_command::handle_view_command;
 use clap::Clap;
+use resolve_map_assets::handle_resolve_map_assets_cmd;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
-use std::error::Error;
-use std::path::Path;
 
 fn main() {
     let root_cmd = RootCmd::parse();
-    let cmd_result = handle_cmd(root_cmd).map_err(|error| ProgramErr { error });
-
+    let cmd_result = handle_cmd(root_cmd).map_err(SerializedError);
+    
     std::process::exit(match cmd_result {
         Err(e) => {
             let json = serde_json::to_string_pretty(&e).unwrap();
@@ -86,14 +83,6 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
     }
 
     Ok(())
-}
-
-fn handle_resolve_map_assets_cmd(cmd: &ResolveMapAssetsCmd) -> R<ResolveMapAssetsCmdResult> {
-    resolve_map_assets::resolve_map_assets(
-        Path::new(cmd.workspace.as_str()),
-        &cmd.map_id,
-        cmd.prune_unused,
-    )
 }
 
 #[derive(Clap)]
@@ -235,22 +224,23 @@ impl std::str::FromStr for AggregateViewCmdChoice {
     }
 }
 
-struct ProgramErr {
-    error: Box<dyn Error>,
-}
+struct SerializedError(anyhow::Error);
 
-impl Serialize for ProgramErr {
+impl Serialize for SerializedError {
     fn serialize<S>(&self, serializer: S) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
     where
         S: Serializer,
     {
         // 3 is the number of fields in the struct.
-        let mut state = serializer.serialize_struct("ProgramErr", 3)?;
-        state.serialize_field("error", &self.error.to_string())?;
-        state.serialize_field(
-            "backtrace",
-            &self.error.backtrace().map(|b| format!("{:?}", b)),
-        )?;
+        let mut state = serializer.serialize_struct("ProgramErr", 2)?;
+        let chain: Vec<String> = self.0
+            .chain()
+            .map(|e| e.to_string())
+            .collect();
+
+        state.serialize_field("error", &self.0.to_string())?;
+        state.serialize_field("chain", &chain)?;
+
         state.end()
     }
 }

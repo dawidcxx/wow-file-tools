@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 use std::fs::{DirEntry, read_dir};
+use anyhow::Context;
+
 use crate::common::{R, err};
 use std::path::PathBuf;
 use std::iter::FromIterator;
@@ -40,7 +42,7 @@ impl DbcLookup {
     ) -> R<PathBuf> {
         self.lookup.get(dbc_file_name)
             .map(|entry| entry.path())
-            .ok_or(format!("DBC {} not found in provided dbc folder", dbc_file_name).into())
+            .context(format!("DBC {} not found in provided dbc folder", dbc_file_name))
     }
 }
 

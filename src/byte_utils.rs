@@ -1,5 +1,7 @@
 use std::convert::TryInto;
 use std::str::from_utf8;
+use anyhow::Context;
+
 use crate::common::{R, err};
 
 pub trait VecUtils {
@@ -64,7 +66,7 @@ impl VecUtils for Vec<u8> {
     }
 
     fn get_byte(&self, offset: usize) -> R<u8> {
-        Ok(self.get(offset).ok_or(format!("Byte with offset {} is out of range!", offset))?.clone())
+        Ok(self.get(offset).context(format!("Byte with offset {} is out of range!", offset))?.clone())
     }
 
     fn get_two_bytes(&self, offset: usize) -> R<[u8; 2]> {

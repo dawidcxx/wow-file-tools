@@ -1,3 +1,4 @@
+use anyhow::Context;
 use serde::{Serialize, Deserialize};
 use crate::common::{R};
 use crate::formats::dbc::join::utils::{has_bit_flag, common_join_command_validation};
@@ -57,7 +58,7 @@ pub fn get_spells_join(
             let single_row = dbc_rows
                 .into_iter()
                 .find(|v| v.id == *record_id)
-                .ok_or(format!("Spell.dbc doesn't have a record with id = {}", record_id).as_str())?;
+                .context(format!("Spell.dbc doesn't have a record with id = {}", record_id))?;
             vec![single_row]
         } else {
             dbc_rows

@@ -2,9 +2,10 @@ pub mod mpq_path;
 
 use crate::common::{err, R};
 use crate::mpq::mpq_path::*;
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::fs::OpenOptions;
-use std::io::{Write};
+use std::io::Write;
 use std::path::PathBuf;
 use stormlib::{MpqArchive, MpqFile};
 
@@ -55,7 +56,7 @@ pub fn extract_file_from_mpq_to_path(
                 ));
             }
         } else {
-            let parent = path.parent().ok_or(format!(
+            let parent = path.parent().context(format!(
                 "Given target-path '{}' must have a valid parent directory",
                 path.display()
             ))?;
@@ -121,12 +122,12 @@ pub fn extract_mpq_tree(
             target_path.display()
         ));
     }
-    
+
     let mpq_tree_path = MpqPath::from_string(mpq_tree).unwrap();
     let mut archive = MpqArchive::from_path_readonly(mpq_path_str)?;
     let file_list: Vec<MpqPath> = archive
         .get_file_list()
-        .map_err(|e| format!("Failed to get the MPQ's (listfile), reason: {}", e))?
+        .context("Failed to get the MPQ's (listfile)")?
         .into_iter()
         .filter_map(|it| MpqPath::from_string(&it))
         .collect();
@@ -150,9 +151,7 @@ pub fn extract_mpq_tree(
         extraced_files.push(dest);
     }
 
-    return Ok(MpqExtractTreeResult { 
-        extraced_files,
-    });
+    return Ok(MpqExtractTreeResult { extraced_files });
 }
 
 fn create_directories(matching_files: &Vec<MpqPath>, target_path: &PathBuf) -> R<()> {
@@ -201,11 +200,8 @@ fn extension_check(mpq_path: &PathBuf) -> R<()> {
 }
 
 fn retrieve_mpq_file<'a>(mpq_file_name: &String, mpq: &'a mut MpqArchive) -> R<&'a MpqFile> {
-    let file = mpq.get_file(mpq_file_name.as_str()).map_err(|e| {
-        format!(
-            "Failed to retrieve MPQ file, reason:  '{}' file: `{}`",
-            e, mpq_file_name
-        )
-    })?;
+    let file = mpq
+        .get_file(mpq_file_name.as_str())
+        .with_context(|| format!("Failed to retrieve MPQ file, file: `{}`", mpq_file_name))?;
     Ok(file)
 }

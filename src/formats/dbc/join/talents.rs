@@ -1,5 +1,6 @@
 use crate::formats::dbc::spell_icon::SpellIconDbcRow;
 use crate::common::{R};
+use anyhow::Context;
 use serde::{Serialize, Deserialize};
 use crate::formats::dbc::join::utils::{common_join_command_validation, group_by};
 use crate::formats::dbc::dbc::{load_talent_dbc_from_path, load_spell_dbc_from_path, load_talent_tab_dbc_from_path, load_spell_icon_dbc_from_path};
@@ -28,7 +29,7 @@ pub fn get_talents_join(
             let single_row = rows
                 .into_iter()
                 .find(|v| v.id == *record_id)
-                .ok_or(format!("Talent.dbc doesn't have a record with id = {}", record_id).as_str())?;
+                .context(format!("Talent.dbc doesn't have a record with id = {}", record_id))?;
             vec![single_row]
         } else {
             rows

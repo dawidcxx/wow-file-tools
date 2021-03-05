@@ -1,3 +1,4 @@
+use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use crate::common::R;
 use std::path::{Path};
@@ -38,14 +39,11 @@ pub struct M2File {
 
 impl M2File {
     pub fn from_path<P: AsRef<Path>>(path: P) -> R<M2File> {
-        let v = path.as_ref().to_path_buf();
-
-        let data = std::fs::read(v.clone())?;
-
+        let path = path.as_ref().to_path_buf();
+        let data = std::fs::read(path.clone())
+            .with_context(|| format!("Failed to m2 file '{}'", path.display()))?;
         M2File::from_bytes(data)
-            .map_err(|e| {
-                format!("Failed to read M2 file. {}", e).into()
-            })
+            .context("Failed to read M2 file.")
     }
 
     fn from_bytes(bytes: Vec<u8>) -> R<M2File> {

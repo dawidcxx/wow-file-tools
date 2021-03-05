@@ -3,6 +3,7 @@ use std::fs::File;
 use std::io::Read;
 use crate::byte_utils::*;
 use std::convert::TryInto;
+use anyhow::Context;
 use serde::{Serialize, Deserialize};
 use crate::common::{R};
 use std::path::Path;
@@ -18,10 +19,12 @@ impl Chunk {
     pub fn get_id_as_string(&self) -> String { from_utf8(&self.id).unwrap().chars().rev().collect() }
 
     pub fn from_path<P: AsRef<Path>>(path: P) -> R<Vec<Chunk>> {
-        let mut f = File::open(path)?;
-        let file_size = f.metadata()?.len() as usize;
+        let path = path.as_ref();
+        let mut file = File::open(path)
+            .with_context(|| format!("Could not open file {:?}", path.display()))?;
+        let file_size = file.metadata()?.len() as usize;
         let mut buffered_file = Vec::with_capacity(file_size);
-        f.read_to_end(&mut buffered_file)?;
+        file.read_to_end(&mut buffered_file)?;
 
         let mut offset: usize = 0;
         let mut builder: Vec<Chunk> = Vec::new();
@@ -135,7 +138,7 @@ impl ChunkVecUtils for Vec<Chunk> {
 
     fn get_chunk_of_type_checked(&self, chunk_type: &str) -> R<&Chunk> {
         self.get_chunk_of_type_optionally(chunk_type)
-            .ok_or(format!("Failed to find chunk of type {}", chunk_type).into())
+            .with_context(|| format!("Failed to find chunk of type {}", chunk_type))
     }
 
     fn get_mver_chunk(&self) -> R<ChunkMver> {

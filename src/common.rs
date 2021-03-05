@@ -1,7 +1,5 @@
-use std::error::Error;
-
-pub(crate) type R<T> = Result<T, Box<dyn Error>>;
+pub(crate) type R<T> = anyhow::Result<T>;
 
 pub fn err<T>(reason: String) -> R<T> {
-    Err(reason.into())
+    return Err(anyhow::anyhow!(reason));
 }

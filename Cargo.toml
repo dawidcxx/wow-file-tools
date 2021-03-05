@@ -14,3 +14,5 @@ clap = "3.0.0-beta.2"
 walkdir = "2"
 stormlib= { path= "./stormlib" }
 erased-serde = "0.3"
+backtrace = "0.3"
+anyhow = "1.0"
