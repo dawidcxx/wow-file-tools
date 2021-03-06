@@ -13,6 +13,8 @@ use std::os::raw::c_uint;
 use std::os::raw::*;
 use std::ptr;
 
+use bindings::SFileAddFileEx;
+
 pub struct MpqArchive {
     handle: bindings::HANDLE,
     open_files: Vec<MpqFile>,
@@ -101,6 +103,32 @@ impl MpqArchive {
         self.open_files.push(file);
 
         return Ok(self.open_files.last().unwrap());
+    }
+
+    pub fn add_file(
+        &mut self,
+        file_path: &std::path::PathBuf,
+        mpq_save_as_path: &String,
+    ) -> Result<(), MpqErr> {
+        let file_path = CString::new(file_path.to_string_lossy().as_bytes())
+            .expect("Couldn't create a CString from given file_path");
+        let save_at = CString::new(mpq_save_as_path.clone())
+            .expect("Couldn't create a CString from given mpq_save_as_path");
+        let result = unsafe {
+            bindings::SFileAddFileEx(
+                self.handle,
+                file_path.as_ptr(),
+                save_at.as_ptr(),
+                bindings::MPQ_FILE_COMPRESS | bindings::MPQ_FILE_REPLACEEXISTING,
+                bindings::MPQ_COMPRESSION_HUFFMANN,
+                bindings::MPQ_COMPRESSION_HUFFMANN,
+            )
+        };
+        if !result {
+            let last_err = unsafe { bindings::GetLastError() };
+            return Err(last_err.into());
+        }
+        Ok(())
     }
 
     fn from_path_internal(mpq_path: &str, flags: bindings::DWORD) -> Result<MpqArchive, MpqErr> {
@@ -222,7 +250,9 @@ impl Drop for MpqFile {
 impl Into<MpqErr> for bindings::DWORD {
     fn into(self) -> MpqErr {
         match self {
-            bindings::ERROR_SUCCESS => panic!("stormlib binding error: tried to map bindings::ERROR_SUCCESS"),
+            bindings::ERROR_SUCCESS => {
+                panic!("stormlib binding error: tried to map bindings::ERROR_SUCCESS")
+            }
             bindings::ERROR_FILE_NOT_FOUND => MpqErr::FileNotFound,
             bindings::ERROR_ACCESS_DENIED => MpqErr::AccessDenied,
             bindings::ERROR_INVALID_HANDLE => MpqErr::InvalidHandle,

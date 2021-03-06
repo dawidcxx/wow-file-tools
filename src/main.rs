@@ -89,6 +89,7 @@ pub enum MpqToolCmd {
     View(MpqToolCmdView),
     Extract(MpqToolCmdExtract),
     ExtractTree(MpqToolCmdExtractTree),
+    Pack(MpqToolCmdPack)
 }
 
 #[derive(Clap)]
@@ -96,6 +97,20 @@ pub enum MpqToolCmd {
 pub struct MpqToolCmdView {
     #[clap(short = 'a', long = "archive")]
     archive_path: String,
+}
+
+#[derive(Clap)]
+#[clap(about = "Adds a file to the given archive")]
+pub struct MpqToolCmdPack {
+    #[clap(short = 'a', long = "archive")]
+    archive_path: String,
+
+    #[clap(short = 'f', long = "file")]
+    file: String,
+
+    #[clap(short = 'd', long = "destination", about= "Path in the MPQ")]
+    dest: String,
+
 }
 
 #[derive(Clap)]

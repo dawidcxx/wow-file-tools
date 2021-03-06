@@ -13,7 +13,8 @@ Examples:
  - Get the (listfile) `wow-file-tools mpq view -a  ./Work/patch-A.MPQ`
  - Extract a file from a MPQ as hex `wow-file-tools mpq extract -a  ./Work/patch-A.MPQ -f "World\wmo\kalimdor\uldum\uldum_fishing_village.wmo"`
  - Extract a file from a MPQ to disk `wow-file-tools mpq extract -a  ./Work/patch-A.MPQ -f "World\wmo\kalimdor\uldum\uldum_fishing_village.wmo" -t ./`
-- Extract everything from a MPQ to ./Work `wow-file-tools mpq extract-tree -a .\Work\patch-A.mpq -t "/" -d .\Work\`
+ - Extract everything from a MPQ to ./Work `wow-file-tools mpq extract-tree -a .\Work\patch-A.mpq -t "/" -d .\Work\`
+ - Insert a file to the archieve `wow-file-tools mpq pack -a ".\Work\patch-A.mpq" -f ".\crabby.blp" -d "creature/crab"`
 
 - ## Resolve Map assets
 

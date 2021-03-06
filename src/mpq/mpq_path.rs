@@ -35,19 +35,25 @@ impl MpqPath {
         let leaf_component = components.last().unwrap();
 
         // infer from the name is it's a file/directory.
-        let is_dir = match leaf_component.split(".").count() {
-            1 => {
-                // doesn't have an extension, ...probably a directory
-                // expect when it's a listfile.
-                leaf_component.to_uppercase().eq("(LISTFILE)")
-            }
-            2 => false,
-            _ => panic!("Malformed MPQ file path"),
-        };
+        let is_dir = is_directory(leaf_component);
+
         return Some(MpqPath {
             components,
             is_dir: is_dir,
         });
+    }
+
+    pub fn push(&self, path_component: &String) -> Self {
+        if !self.is_dir() {
+            panic!("Tried to push to a non-dir mpq-path");
+        }
+        let mut cmps = self.components.clone();
+        cmps.push(path_component.clone());
+
+        return Self {
+            is_dir: is_directory(path_component),
+            components: cmps,
+        };
     }
 
     pub fn is_dir(&self) -> bool {
@@ -88,6 +94,12 @@ impl MpqPath {
     }
 }
 
+impl ToString for MpqPath {
+    fn to_string(&self) -> String {
+        return self.components.join("\\")
+    }
+}
+
 pub struct MpqPathUtil;
 
 impl MpqPathUtil {
@@ -110,4 +122,19 @@ impl MpqPathUtil {
         }
         return matching_entries;
     }
+}
+
+// internal utils
+fn is_directory(leaf_component: &String) -> bool {
+    const EXCEPTIONS: &'static [&'static str] = &["(listfile)"];
+
+    return match leaf_component.split(".").count() {
+        1 => {
+            // doesn't have an extension, ...probably a directory
+            // there are some exceptions tho
+            !EXCEPTIONS.iter().any(|e| e.eq_ignore_ascii_case(leaf_component))
+        }
+        2 => false,
+        _ => panic!("Malformed MPQ file path"),
+    };
 }

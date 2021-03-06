@@ -4,9 +4,9 @@ use crate::common::{err, R};
 use crate::mpq::mpq_path::*;
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
-use std::fs::OpenOptions;
 use std::io::Write;
 use std::path::PathBuf;
+use std::{fs::OpenOptions, time::Instant};
 use stormlib::{MpqArchive, MpqFile};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -154,6 +154,71 @@ pub fn extract_mpq_tree(
     return Ok(MpqExtractTreeResult { extraced_files });
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AddFileToMpqResult {
+    pub elapsed_ms: f64,
+}
+
+pub fn add_file_to_mpq(
+    mpq_path: &String,
+    file_to_add: &String,
+    mpq_save_path: &String,
+) -> R<AddFileToMpqResult> {
+    let start = Instant::now();
+    let mpq_path = validated_mpq_path(mpq_path)?;
+    let mut archive = MpqArchive::from_path(mpq_path.to_string_lossy().as_ref())?;
+
+    let file_path_buf = PathBuf::from(file_to_add);
+    if !file_path_buf.exists() {
+        return err(format!(
+            "File '{}' not found on the file system",
+            file_to_add
+        ));
+    }
+    if !file_path_buf.is_file() {
+        return err(format!(
+            "File '{}' must be a file, not a directory",
+            file_to_add
+        ));
+    }
+    if file_path_buf.extension().is_none() {
+        return err(format!("File '{}' must have a extension", file_to_add));
+    }
+
+    let file_name = file_path_buf
+        .file_name()
+        .with_context(|| format!("Failed to extract file_name of: '{}'", file_to_add))?
+        .to_string_lossy()
+        .to_string();
+
+    let mpq_save_path_dir = MpqPath::from_string(mpq_save_path)
+        .with_context(|| format!("Invalid mpq path save location given '{}'", mpq_save_path))?;
+
+    if !mpq_save_path_dir.is_dir() {
+        return err(format!(
+            "Mpq save path must be a directory '{}'",
+            mpq_save_path_dir.to_string()
+        ));
+    }
+
+    let save_at = mpq_save_path_dir.push(&file_name);
+
+    archive
+        .add_file(&file_path_buf, &save_at.to_string())
+        .with_context(|| {
+            format!(
+                "Failed to add file '{}' to archieve '{}'",
+                file_path_buf.display(),
+                mpq_path.display()
+            )
+        })?;
+
+    return Ok(AddFileToMpqResult {
+        elapsed_ms: (start.elapsed().as_micros() as f64) / 1000.0,
+    });
+}
+
+// internal utils
 
 fn create_directories(matching_files: &Vec<MpqPath>, target_path: &PathBuf) -> R<()> {
     let directories: Vec<PathBuf> = matching_files
