@@ -1,4 +1,3 @@
-use crate::{ResolveMapAssetsCmd, common::{err, R}};
 use crate::formats::adt::AdtFile;
 use crate::formats::dbc::dbc::{load_loading_screens_dbc_from_path, load_map_dbc_from_path};
 use crate::formats::dbc::map::MapDbcRow;
@@ -6,7 +5,10 @@ use crate::formats::m2::M2File;
 use crate::formats::mdx::MdxFile;
 use crate::formats::wdl::WdlFile;
 use crate::formats::wmo::WmoFile;
-use crate::resolve_map_assets::ResolveMapAssetsCmdWarn::{AdtParseErr, Missing, MissingDbcEntry};
+use crate::{
+    common::{err, R},
+    ResolveMapAssetsCmd,
+};
 use anyhow::Context;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -46,14 +48,14 @@ pub struct ResolveMapAssetsAreaIdEntry {
     pub map_name: String,
 }
 
-pub fn handle_resolve_map_assets_cmd(cmd: &ResolveMapAssetsCmd) -> R<ResolveMapAssetsCmdResult> {
-    resolve_map_assets(
+pub fn handle_resolve_map_assets(cmd: &ResolveMapAssetsCmd) -> R<Box<dyn erased_serde::Serialize>> {
+    let result = resolve_map_assets(
         Path::new(cmd.workspace.as_str()),
         &cmd.map_id,
         cmd.prune_unused,
-    )
+    )?;
+    return Ok(Box::new(result));
 }
-
 
 fn resolve_map_assets(
     workspace_path: &Path,
@@ -109,7 +111,7 @@ fn resolve_map_assets(
             let adt = AdtFile::from_path(adt_path.clone());
 
             if adt.is_err() {
-                warns.push(AdtParseErr(adt_path.clone()));
+                warns.push(ResolveMapAssetsCmdWarn::AdtParseErr(adt_path.clone()));
                 break;
             }
 
@@ -237,7 +239,10 @@ fn find_and_add_minimap_blps(
             if let Some(blp_path) = join_path_ignoring_casing(mini_map_folder.as_ref(), blp) {
                 results.push(blp_path);
             } else {
-                warns.push(Missing(format!("TILESET/Textures/Minimap/{}", blp)))
+                warns.push(ResolveMapAssetsCmdWarn::Missing(format!(
+                    "TILESET/Textures/Minimap/{}",
+                    blp
+                )))
             }
         }
     }
@@ -332,7 +337,7 @@ fn add_wow_dep(
             added.push(path.clone());
             results.push(path)
         } else {
-            warns.push(Missing(dependency));
+            warns.push(ResolveMapAssetsCmdWarn::Missing(dependency));
         }
     }
     added
@@ -420,7 +425,7 @@ fn add_m2_type_wow_dep(
             }
 
             if !found {
-                warns.push(Missing(dependency));
+                warns.push(ResolveMapAssetsCmdWarn::Missing(dependency));
             }
         }
     }
@@ -451,13 +456,15 @@ fn find_and_add_loading_screen_blp(
                 &mut warns,
             );
         } else {
-            warns.push(MissingDbcEntry(format!(
+            warns.push(ResolveMapAssetsCmdWarn::MissingDbcEntry(format!(
                 "DBFilesClient/LoadingScreens.dbc  map_dbc.loading_screen_ref_id = {}",
                 map_dbc.loading_screen_ref_id
             )))
         }
     } else {
-        warns.push(Missing("DBFilesClient/LoadingScreens.dbc".to_string()));
+        warns.push(ResolveMapAssetsCmdWarn::Missing(
+            "DBFilesClient/LoadingScreens.dbc".to_string(),
+        ));
     }
 }
 

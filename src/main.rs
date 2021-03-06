@@ -3,28 +3,26 @@
 #![feature(drain_filter)]
 
 pub mod byte_utils;
+mod command_handler;
 pub mod common;
 pub mod formats;
 pub mod mpq;
-mod resolve_map_assets;
-mod view_command;
+
+use crate::command_handler::dbc_join::handle_dbc_join;
+use crate::command_handler::mpq::handle_mpq_command;
+use crate::command_handler::resolve_map_assets::handle_resolve_map_assets;
+use crate::command_handler::view::handle_view_command;
 
 use crate::common::R;
-use crate::formats::dbc::join::spell::get_spells_join;
-use crate::formats::dbc::join::talents::get_talents_join;
-use crate::mpq::{
-    extract_file_from_mpq, extract_file_from_mpq_to_path, extract_mpq_tree, view_mpq,
-};
-use crate::view_command::handle_view_command;
+
 use clap::Clap;
-use resolve_map_assets::handle_resolve_map_assets_cmd;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
 fn main() {
     let root_cmd = RootCmd::parse();
     let cmd_result = handle_cmd(root_cmd).map_err(SerializedError);
-    
+
     std::process::exit(match cmd_result {
         Err(e) => {
             let json = serde_json::to_string_pretty(&e).unwrap();
@@ -38,38 +36,9 @@ fn main() {
 fn handle_cmd(root_cmd: RootCmd) -> R<()> {
     let mut result: Box<dyn erased_serde::Serialize> = match &root_cmd.cmd {
         Cmd::View(v) => handle_view_command(v)?,
-        Cmd::ResolveMapAssets(cmd) => Box::new(handle_resolve_map_assets_cmd(cmd)?),
-        Cmd::DbcJoin(cmd) => match cmd.join {
-            AggregateViewCmdChoice::SPELLS => {
-                Box::new(get_spells_join(&cmd.dbc_folder, &cmd.record_id)?)
-            }
-            AggregateViewCmdChoice::TALENTS => {
-                Box::new(get_talents_join(&cmd.dbc_folder, &cmd.record_id)?)
-            }
-        },
-        Cmd::Mpq { cmd } => match cmd {
-            MpqToolCmd::View(view_cmd) => Box::new(view_mpq(&view_cmd.archive_path)?),
-            MpqToolCmd::Extract(extract_cmd) => match &extract_cmd.target_path {
-                Some(target_path) => {
-                    let result = extract_file_from_mpq_to_path(
-                        &extract_cmd.archive_path,
-                        &extract_cmd.archive_file_path,
-                        target_path,
-                    )?;
-                    Box::new(result)
-                }
-                None => {
-                    let result = extract_file_from_mpq(
-                        &extract_cmd.archive_path,
-                        &extract_cmd.archive_file_path,
-                    )?;
-                    Box::new(result)
-                }
-            },
-            MpqToolCmd::ExtractTree(cmd) => {
-                Box::new(extract_mpq_tree(&cmd.archive_path, &cmd.tree, &cmd.dest)?)
-            }
-        },
+        Cmd::ResolveMapAssets(cmd) => handle_resolve_map_assets(cmd)?,
+        Cmd::DbcJoin(cmd) => handle_dbc_join(cmd)?,
+        Cmd::Mpq { cmd } => handle_mpq_command(cmd)?,
     };
 
     if root_cmd.no_result {
@@ -233,10 +202,7 @@ impl Serialize for SerializedError {
     {
         // 3 is the number of fields in the struct.
         let mut state = serializer.serialize_struct("ProgramErr", 2)?;
-        let chain: Vec<String> = self.0
-            .chain()
-            .map(|e| e.to_string())
-            .collect();
+        let chain: Vec<String> = self.0.chain().map(|e| e.to_string()).collect();
 
         state.serialize_field("error", &self.0.to_string())?;
         state.serialize_field("chain", &chain)?;
