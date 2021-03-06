@@ -1,5 +1,3 @@
-#![feature(backtrace)]
-#![feature(fn_traits)]
 #![feature(drain_filter)]
 
 pub mod byte_utils;

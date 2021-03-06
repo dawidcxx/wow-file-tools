@@ -519,19 +519,17 @@ fn find_files_by_extension<P: AsRef<Path>>(
     find_file_by_predicate(
         path,
         depth,
-        Box::new(move |entry| {
+        move |entry| {
             let curr_file_name = entry.file_name().to_str().unwrap().to_uppercase();
             curr_file_name.ends_with(&extension)
-        }),
+        },
     )
 }
 
-type FileFinderPredicate = dyn Fn(&DirEntry) -> bool;
-
-fn find_file_by_predicate<P: AsRef<Path>>(
+fn find_file_by_predicate<P: AsRef<Path>, F : Fn(&DirEntry) -> bool>(
     path: P,
     depth: usize,
-    predicate: Box<FileFinderPredicate>,
+    predicate: F,
 ) -> Vec<DirEntry> {
     let mut res = Vec::new();
     for entry in WalkDir::new(path)
@@ -547,7 +545,7 @@ fn find_file_by_predicate<P: AsRef<Path>>(
         if metadata.is_dir() {
             continue;
         }
-        if predicate.call((&entry,)) {
+        if predicate(&entry) {
             res.push(entry);
         }
     }

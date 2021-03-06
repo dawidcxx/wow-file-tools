@@ -154,6 +154,7 @@ pub fn extract_mpq_tree(
     return Ok(MpqExtractTreeResult { extraced_files });
 }
 
+
 fn create_directories(matching_files: &Vec<MpqPath>, target_path: &PathBuf) -> R<()> {
     let directories: Vec<PathBuf> = matching_files
         .iter()
