@@ -14,6 +14,7 @@ use crate::command_handler::view::handle_view_command;
 use crate::common::R;
 
 use clap::Clap;
+use command_handler::proxy::handle_proxy_command;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
@@ -37,6 +38,7 @@ fn handle_cmd(root_cmd: RootCmd) -> R<()> {
         Cmd::ResolveMapAssets(cmd) => handle_resolve_map_assets(cmd)?,
         Cmd::DbcJoin(cmd) => handle_dbc_join(cmd)?,
         Cmd::Mpq { cmd } => handle_mpq_command(cmd)?,
+        Cmd::Proxy(cmd) => handle_proxy_command(&cmd.host, &cmd.username, &cmd.password)?,
     };
 
     if root_cmd.no_result {
@@ -81,6 +83,7 @@ pub enum Cmd {
         #[clap(subcommand)]
         cmd: MpqToolCmd,
     },
+    Proxy(ProxyCmd),
 }
 
 #[derive(Clap)]
@@ -89,7 +92,20 @@ pub enum MpqToolCmd {
     View(MpqToolCmdView),
     Extract(MpqToolCmdExtract),
     ExtractTree(MpqToolCmdExtractTree),
-    Pack(MpqToolCmdPack)
+    Pack(MpqToolCmdPack),
+}
+
+#[derive(Clap)]
+#[clap(about = "Create a proxy server and inspect traffic")]
+pub struct ProxyCmd {
+    #[clap(short = 'h', long = "host")]
+    host: String,
+
+    #[clap(short = 'u', long = "username")]
+    username: String,
+
+    #[clap(short = 'p', long = "password")]
+    password: String,
 }
 
 #[derive(Clap)]
@@ -108,9 +124,8 @@ pub struct MpqToolCmdPack {
     #[clap(short = 'f', long = "file")]
     file: String,
 
-    #[clap(short = 'd', long = "destination", about= "Path in the MPQ")]
+    #[clap(short = 'd', long = "destination", about = "Path in the MPQ")]
     dest: String,
-
 }
 
 #[derive(Clap)]
