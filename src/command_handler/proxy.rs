@@ -24,7 +24,8 @@ async fn run_proxy_server() {
     let listener = TcpListener::bind("127.0.0.1:3724").await.unwrap();
 
     loop {
-        let (socket, _) = listener.accept().await.unwrap();
+        let (socket, addr) = listener.accept().await.unwrap();
+        println!("Got a connection: '{:?}'.", addr);
         tokio::spawn(async move {
             process_connection(socket).await;
         });
@@ -33,16 +34,12 @@ async fn run_proxy_server() {
 
 async fn process_connection(socket: TcpStream) {
     let mut connection = Connection::new(socket);
-    while let Ok(Some(frame)) = connection.read_frame().await {
-        println!("frame: {:?}", frame)
-    }
-
     loop {
         match connection.read_frame().await {
             Ok(None) => continue,
             Ok(Some(frame)) => {
                 println!("Read frame: {:?}", frame);
-                break;
+                continue;
             }
             Err(err) => {
                 println!("Error while trying to read_frame: {}", err);
@@ -55,15 +52,13 @@ async fn process_connection(socket: TcpStream) {
 struct Connection {
     stream: TcpStream,
     buffer: BytesMut,
-    cursor: usize,
 }
 
 impl Connection {
     pub fn new(stream: TcpStream) -> Self {
         Self {
             stream,
-            buffer: BytesMut::with_capacity(1024),
-            cursor: 0,
+            buffer: BytesMut::with_capacity(1024 * 4),
         }
     }
 
@@ -73,15 +68,14 @@ impl Connection {
     //  - Ok(None) => not enough data arrived, try again!
     //  - Err(err) => Malformed packet or TCP error
     pub async fn read_frame(&mut self) -> R<Option<Frame>> {
-        let bytes_read_count = self.stream.read(&mut self.buffer[self.cursor..]).await?;
-        self.cursor += bytes_read_count;
+        let bytes_read_count = self.stream.read_buf(&mut self.buffer).await?;
 
         if bytes_read_count == 0 {
             // EOF or trying to read past [self.buffer]
             return err("Reset by peer".to_string());
         }
 
-        let packet_type = self.buffer.get(1).context("Can't get packet_type")?.clone();
+        let packet_type = self.buffer.get(0).context("Can't get packet_type")?.clone();
         let packet_current_size = self.buffer.len();
 
         if self.is_completed(packet_current_size, packet_type)? {
@@ -95,15 +89,20 @@ impl Connection {
 
     fn is_completed(&self, current_size: usize, packet_type: u8) -> R<bool> {
         let is_complete = match packet_type {
-            1 => AuthLogonChallenge::is_fully_read(current_size, &self.buffer),
-            _ => return err("Invalid packet type".to_string()),
+            0 => AuthLogonChallenge::is_fully_read(current_size, &self.buffer),
+            _ => {
+                return err(format!(
+                    "is_completed: Invalid packet_type: {}",
+                    packet_type
+                ))
+            }
         };
         Ok(is_complete)
     }
 
     fn parse_frame(&mut self, packet_type: u8) -> R<Frame> {
         return match packet_type {
-            1 => {
+            0 => {
                 let packet = AuthLogonChallenge::from_buffer(&mut self.buffer);
                 Ok(Frame::AuthLogonChallenge(packet))
             }
@@ -124,18 +123,18 @@ enum Frame {
 
 #[derive(Debug)]
 struct AuthLogonChallenge {
-    cmd: u8,             // offset :: 1
-    error: u8,           // offset :: 2
-    size: u16,           // offset :: 4
-    game_name: [u8; 4],  // offset :: 8
-    version: [u8; 3],    // offset :: 11
-    build: u16,          // offset :: 13
-    platform: [u8; 4],   // offset :: 17
-    os: [u8; 4],         // offset :: 21
-    country: [u8; 4],    // offset :: 25
-    timezone_bias: u32,  // offset :: 29
-    ip: u32,             // offset :: 33
-    username_length: u8, // offset :: 34
+    cmd: u8,             // offset :: 0
+    error: u8,           // offset :: 1
+    size: u16,           // offset :: 3
+    game_name: [u8; 4],  // offset :: 7
+    version: [u8; 3],    // offset :: 10
+    build: u16,          // offset :: 12
+    platform: [u8; 4],   // offset :: 16
+    os: [u8; 4],         // offset :: 20
+    country: [u8; 4],    // offset :: 24
+    timezone_bias: u32,  // offset :: 28
+    ip: u32,             // offset :: 32
+    username_length: u8, // offset :: 33
     username: String,
 }
 
@@ -195,7 +194,7 @@ impl AuthLogonChallenge {
     }
 
     fn is_fully_read(current_size: usize, buf: &BytesMut) -> bool {
-        const BASE_SIZE: usize = 34;
+        const BASE_SIZE: usize = 33 ;
 
         if current_size >= BASE_SIZE {
             let username_length = buf.get(BASE_SIZE).unwrap().clone() as usize;

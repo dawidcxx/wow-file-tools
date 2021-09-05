@@ -98,7 +98,7 @@ pub enum MpqToolCmd {
 #[derive(Clap)]
 #[clap(about = "Create a proxy server and inspect traffic")]
 pub struct ProxyCmd {
-    #[clap(short = 'h', long = "host")]
+    #[clap(short = 't', long = "host")]
     host: String,
 
     #[clap(short = 'u', long = "username")]
