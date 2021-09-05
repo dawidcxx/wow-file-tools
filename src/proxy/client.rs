@@ -1,4 +1,5 @@
 use bytes::{Buf, BytesMut};
+use serde::__private::from_utf8_lossy;
 
 #[derive(Debug)]
 pub enum Frame {
@@ -26,10 +27,7 @@ pub struct AuthLogonChallenge {
 
 impl AuthLogonChallenge {
     pub fn from_buffer(buffer: &mut BytesMut) -> Self {
-        assert!(
-            buffer.len() >= 34,
-            "Invalid packet size"
-        );
+        assert!(buffer.len() >= 34, "Invalid packet size");
         let cmd = buffer.get_u8();
         assert!(cmd == AUTH_LOGON_CHALLENGE_OP_CODE, "Invalid Opcode");
         let error = buffer.get_u8();
@@ -63,6 +61,7 @@ impl AuthLogonChallenge {
         let timezone_bias = buffer.get_u32();
         let ip = buffer.get_u32();
         let username_length = buffer.get_u8();
+        let username = from_utf8_lossy(&buffer.chunk()).to_string();
         return AuthLogonChallenge {
             cmd,
             error,
@@ -76,7 +75,7 @@ impl AuthLogonChallenge {
             timezone_bias,
             ip,
             username_length,
-            username: "".to_string(),
+            username,
         };
     }
 
