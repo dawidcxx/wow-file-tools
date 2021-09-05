@@ -5,6 +5,7 @@ mod command_handler;
 pub mod common;
 pub mod formats;
 pub mod mpq;
+pub mod proxy;
 
 use crate::command_handler::dbc_join::handle_dbc_join;
 use crate::command_handler::mpq::handle_mpq_command;
