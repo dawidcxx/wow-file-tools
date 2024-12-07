@@ -1,4 +1,3 @@
-#![feature(drain_filter)]
 
 pub mod byte_utils;
 mod command_handler;

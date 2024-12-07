@@ -107,13 +107,9 @@ impl MpqPathUtil {
         let mut matching_entries = matches_source.clone();
         let mut index = 0;
         while let Some(curr) = entry.components.get(index) {
-            matching_entries.drain_filter(|other_path| {
+            matching_entries.retain(|other_path| {
                 if let Some(other) = other_path.components.get(index) {
-                    if curr == other {
-                        false
-                    } else {
-                        true
-                    }
+                    curr != other
                 } else {
                     true
                 }

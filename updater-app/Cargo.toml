@@ -1,0 +1,9 @@
+[package]
+name = "updater-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+native-windows-gui = "1.0.12"
+native-windows-derive = "1.0.3" 
+

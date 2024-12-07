@@ -471,7 +471,7 @@ fn find_and_add_loading_screen_blp(
 fn join_path_ignoring_casing(base: &Path, join: &str) -> Option<PathBuf> {
     let parts: Vec<&str> = join.split(&['/', '\\'][..]).collect();
     let mut buf = PathBuf::new();
-    buf.push(base.clone());
+    buf.push(base);
 
     for part in parts {
         let part = part.to_uppercase();
