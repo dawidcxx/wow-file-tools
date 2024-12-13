@@ -127,8 +127,6 @@ impl MpqArchive {
         let c_file_path = CString::new(file_name).unwrap();
         let mut file_handle: bindings::HANDLE = ptr::null_mut();
 
-        println!("bytes.len(): {}", bytes.len());
-
         let fileCreationResult = unsafe {
             bindings::SFileCreateFile(
                 self.handle,
@@ -141,7 +139,6 @@ impl MpqArchive {
             )
         };
 
-        println!("fileCreationResult: {}", fileCreationResult);
 
         if !fileCreationResult {
             let last_err = unsafe { bindings::GetLastError() };
@@ -156,8 +153,6 @@ impl MpqArchive {
                 bindings::MPQ_COMPRESSION_ZLIB,
             )
         };
-
-        println!("write_result: {}", write_result);
 
         if !write_result {
             let last_err = unsafe { bindings::GetLastError() };
