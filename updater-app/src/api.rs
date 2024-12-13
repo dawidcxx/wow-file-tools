@@ -1,0 +1,51 @@
+use ureq::Error;
+
+pub struct Api {
+    baseUrl: String,
+}
+
+impl Default for Api {
+    fn default() -> Self {
+        Api {
+            baseUrl: "http://157.90.144.252/release-manager".to_string(),
+        }
+    }
+}
+
+impl Api {
+    // GET http://baseUrl/releases?release=1
+    pub fn get_releases(&self, release_id: u64) -> Result<Vec<ReleaseDetails>, Error> {
+        let url = format!("{}/releases", self.baseUrl);
+        let response = ureq::get(url.as_str())
+            .query("release", release_id.to_string().as_str())
+            .call()?
+            .into_json::<GetAllReleasesResponse>()?;
+        return Ok(response.0);
+    }
+    // GET http://baseUrl/files?file=someFile.txt
+    pub fn get_file(&self, file: &str) -> anyhow::Result<Vec<u8>> {
+        let url = format!("{}/files", self.baseUrl);
+        let response = ureq::get(url.as_str()).query("file", file).call()?;
+        let length: usize = response.header("Content-Length").unwrap().parse()?;
+        let mut bytes: Vec<u8> = Vec::with_capacity(length);
+        response.into_reader().read_to_end(&mut bytes)?;
+        Ok(bytes)
+
+        // return Ok(response);
+    }
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct GetAllReleasesResponse(pub Vec<ReleaseDetails>);
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ReleaseDetails {
+    pub id: u64,
+    pub files: Vec<ReleaseFileDetails>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ReleaseFileDetails {
+    pub path: String,
+    pub sha1: String,
+}

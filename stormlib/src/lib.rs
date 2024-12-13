@@ -59,6 +59,24 @@ impl MpqArchive {
         return Self::from_path_internal(mpq_path, 0);
     }
 
+    pub fn new(mpq_path: &str) -> Result<MpqArchive, MpqErr> {
+        let c_mpq_path = CString::new(mpq_path).unwrap();
+        let mut ptr: bindings::HANDLE = ptr::null_mut();
+        unsafe {
+            bindings::SFileCreateArchive(
+                c_mpq_path.as_ptr(),
+                bindings::MPQ_CREATE_LISTFILE,
+                bindings::HASH_TABLE_SIZE_MAX - 1,
+                &mut ptr,
+            )
+        };
+
+        return Ok(MpqArchive {
+            handle: ptr,
+            open_files: vec![],
+        });
+    }
+
     pub fn from_path_readonly(mpq_path: &str) -> Result<MpqArchive, MpqErr> {
         return Self::from_path_internal(mpq_path, bindings::MPQ_FLAG_READ_ONLY);
     }
@@ -103,6 +121,50 @@ impl MpqArchive {
         self.open_files.push(file);
 
         return Ok(self.open_files.last().unwrap());
+    }
+
+    pub fn write_file(&mut self, file_name: &str, bytes: &[u8]) -> Result<(), MpqErr> {
+        let c_file_path = CString::new(file_name).unwrap();
+        let mut file_handle: bindings::HANDLE = ptr::null_mut();
+
+        println!("bytes.len(): {}", bytes.len());
+
+        let fileCreationResult = unsafe {
+            bindings::SFileCreateFile(
+                self.handle,
+                c_file_path.as_ptr(),
+                0,
+                bytes.len() as u32,
+                0,
+                bindings::MPQ_FILE_REPLACEEXISTING,
+                &mut file_handle,
+            )
+        };
+
+        println!("fileCreationResult: {}", fileCreationResult);
+
+        if !fileCreationResult {
+            let last_err = unsafe { bindings::GetLastError() };
+            return Err(last_err.into());
+        }
+
+        let write_result = unsafe {
+            bindings::SFileWriteFile(
+                file_handle.cast(),
+                bytes.as_ptr().cast(),
+                bytes.len() as u32,
+                bindings::MPQ_COMPRESSION_ZLIB,
+            )
+        };
+
+        println!("write_result: {}", write_result);
+
+        if !write_result {
+            let last_err = unsafe { bindings::GetLastError() };
+            return Err(last_err.into());
+        }
+
+        return Ok(());
     }
 
     pub fn add_file(

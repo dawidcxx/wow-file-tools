@@ -6,4 +6,8 @@ edition = "2021"
 [dependencies]
 native-windows-gui = "1.0.12"
 native-windows-derive = "1.0.3" 
-
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+ureq =  { version = "2.12.1", features = ["json"] } 
+stormlib =  { path = "../stormlib" }
+anyhow = "1.0.94"
