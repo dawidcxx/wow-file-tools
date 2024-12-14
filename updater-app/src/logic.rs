@@ -33,18 +33,18 @@ impl Default for Config {
     }
 }
 
-pub fn read_arenacraft_cfg() -> Config {
-    let cfg = std::fs::read_to_string("arenacraft.cfg");
+pub fn read_updater_app_cfg() -> Config {
+    let cfg = std::fs::read_to_string("updater-app.cfg");
     match cfg {
         Ok(cfg) => match serde_json::from_str(&cfg) {
             Ok(config) => config,
             Err(_) => {
-                println!("Failed to parse arenacraft.cfg, using default config");
+                println!("Failed to parse updater-app.cfg, using default config");
                 Config::default()
             }
         },
         Err(_) => {
-            println!("Failed to read arenacraft.cfg, using default config");
+            println!("Failed to read updater-app.cfg, using default config");
             Config::default()
         }
     }
@@ -89,20 +89,20 @@ pub fn set_realmlist_content(updated_realmlist: &str) -> Option<String> {
 
 }
 
-pub fn write_arenacraft_cfg(config: &Config) {
-    println!("Updating arenacraft.cfg: {:?}", config);
+pub fn write_updater_app_cfg(config: &Config) {
+    println!("Updating updater-app.cfg: {:?}", config);
     let cfg = serde_json::to_string(&config);
     match cfg {
-        Ok(cfg) => match std::fs::write("arenacraft.cfg", cfg) {
+        Ok(cfg) => match std::fs::write("updater-app.cfg", cfg) {
             Ok(_) => {
-                println!("arenacraft.cfg written successfully");
+                println!("updater-app.cfg written successfully");
             }
             Err(err) => {
-                println!("Failed to write arenacraft.cfg: {:?}", err);
+                println!("Failed to write updater-app.cfg: {:?}", err);
             }
         },
         Err(err) => {
-            println!("Failed to serialize arenacraft.cfg: {:?}", err);
+            println!("Failed to serialize updater-app.cfg: {:?}", err);
         }
     }
 }
@@ -145,7 +145,7 @@ pub fn get_mpq_path() -> PathBuf {
     let cwd = std::env::current_dir().expect("Failed to get current directory");
     let candidates = vec![
         cwd.join("data/patch-A.mpq"),
-        cwd.join("data/disabled-arenacraft.mpq"),
+        cwd.join("data/.disabled.mpq"),
     ];
     return candidates.iter().find(|p| p.exists()).unwrap().clone();
 }

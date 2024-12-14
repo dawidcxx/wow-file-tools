@@ -37,7 +37,7 @@ pub struct UpdaterApp {
     #[nwg_resource]
     embed: nwg::EmbedResource,
 
-    #[nwg_control(size: (640, 480), position: (0, 0), title: "ArenaCraft Launcher", flags: "WINDOW|VISIBLE", icon: None)]
+    #[nwg_control(size: (640, 480), position: (0, 0), title: "Updater App", flags: "WINDOW|VISIBLE", icon: None)]
     #[nwg_events( OnInit: [UpdaterApp::on_mount], OnWindowClose: [UpdaterApp::on_exit])]
     window: nwg::Window,
 
@@ -83,7 +83,7 @@ impl UpdaterApp {
         logic::check_has_wow_exe(&cwd);
         logic::check_has_data_dir(&cwd);
 
-        let config = logic::read_arenacraft_cfg();
+        let config = logic::read_updater_app_cfg();
 
         if config.installed {
             self.update_or_install_button.set_text("Update");
@@ -117,12 +117,12 @@ impl UpdaterApp {
     }
 
     fn enable_or_disable(&self) {
-        let mut config = logic::read_arenacraft_cfg();
+        let mut config = logic::read_updater_app_cfg();
         if config.disabled {
             // run enable
             let mpq = logic::get_mpq_path();
             let disabled_mpq = mpq.with_file_name("patch-A.mpq");
-            std::fs::rename(mpq, disabled_mpq).expect("Failed to enable Arenacraft");
+            std::fs::rename(mpq, disabled_mpq).expect("Failed to enable CustomMods");
             let prior_realmlist = logic::set_realmlist_content(&REALMLIST);
             if let Some(realmlist) = prior_realmlist {
                 config.prior_realmlist = Some(realmlist);
@@ -130,25 +130,25 @@ impl UpdaterApp {
         } else {
             // run disable
             let mpq = logic::get_mpq_path();
-            let disabled_mpq = mpq.with_file_name("disabled-arenacraft.mpq");
-            std::fs::rename(mpq, disabled_mpq).expect("Failed to disable Arenacraft");
+            let disabled_mpq = mpq.with_file_name(".disabled.mpq");
+            std::fs::rename(mpq, disabled_mpq).expect("Failed to disable CustomMods");
             if let Some(ref realmlist) = config.prior_realmlist {
                 logic::set_realmlist_content(&realmlist);
             }
 
         }
         config.disabled = !config.disabled;
-        logic::write_arenacraft_cfg(&config);
+        logic::write_updater_app_cfg(&config);
 
         self.on_mount();
     }
 
     fn uninstall(&self) {
-        let current_config = logic::read_arenacraft_cfg();
+        let current_config = logic::read_updater_app_cfg();
         if current_config.installed {
             let _ = std::fs::remove_file(logic::get_mpq_path());
         }
-        logic::write_arenacraft_cfg(&logic::Config::default());
+        logic::write_updater_app_cfg(&logic::Config::default());
         self.on_mount();
     }
 
@@ -160,7 +160,7 @@ impl UpdaterApp {
     }
 
     fn update_or_install(&self) {
-        let config = logic::read_arenacraft_cfg();
+        let config = logic::read_updater_app_cfg();
         if config.installed {
             self.update(config);
         } else {
@@ -178,7 +178,7 @@ impl UpdaterApp {
                     return;
                 }
                 config.latest_release = releases.last().unwrap().id;
-                logic::write_arenacraft_cfg(&config);
+                logic::write_updater_app_cfg(&config);
                 self.current_status_label
                     .set_text(format!("Found {} missing update(s)", releases.len()).as_str());
                 let files_to_download = logic::compute_files_to_download(releases);
@@ -208,7 +208,7 @@ impl UpdaterApp {
                     .set_text("MPQ archive initialized");
                 config.installed = true;
                 config.current_release = config.latest_release;
-                logic::write_arenacraft_cfg(&config);
+                logic::write_updater_app_cfg(&config);
                 self.update(config);
             }
             Err(err) => {
@@ -255,9 +255,9 @@ impl UpdaterApp {
                             println!("All updates processed");
                             self.update_progress.set_visible(false);
                             self.update_or_install_button.set_visible(true);
-                            let mut cfg = logic::read_arenacraft_cfg();
+                            let mut cfg = logic::read_updater_app_cfg();
                             cfg.current_release = cfg.latest_release;
-                            logic::write_arenacraft_cfg(&cfg);
+                            logic::write_updater_app_cfg(&cfg);
                             self.on_mount();
                         } else {
                             drop(response);
