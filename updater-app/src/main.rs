@@ -26,6 +26,7 @@ use stormlib::MpqArchive;
 
 mod api;
 mod logic;
+mod mpq_writer_thread;
 
 const REALMLIST: &'static str = r#"set realmlist 157.90.144.252"#;
 
@@ -82,6 +83,7 @@ impl UpdaterApp {
         let cwd = std::env::current_dir().expect("Failed to get current directory");
         logic::check_has_wow_exe(&cwd);
         logic::check_has_data_dir(&cwd);
+        mpq_writer_thread::close();
 
         let config = logic::read_updater_app_cfg();
 
@@ -114,6 +116,7 @@ impl UpdaterApp {
 
     fn on_exit(&self) {
         nwg::stop_thread_dispatch();
+        mpq_writer_thread::exit();
     }
 
     fn enable_or_disable(&self) {
@@ -201,9 +204,9 @@ impl UpdaterApp {
     fn install(&self, mut config: logic::Config) {
         self.current_status_label.set_text("Creating MPQ archive");
         let archive = stormlib::MpqArchive::new("data/patch-A.mpq");
-
         match archive {
-            Ok(_archive) => {
+            Ok(archive) => {
+                drop(archive); // release the lock on the MPQ file
                 self.current_status_label
                     .set_text("MPQ archive initialized");
                 config.installed = true;
@@ -220,6 +223,7 @@ impl UpdaterApp {
     }
 
     fn download_updates(&self, mut files_to_download: VecDeque<String>) {
+        mpq_writer_thread::open();
         let sender = self.notice.sender();
         let api = self.api_ref.clone();
 
@@ -232,8 +236,7 @@ impl UpdaterApp {
             let file_content = api.get_file(&file_path)?;
             println!("Downloaded file: {}", file_path);
 
-            let mut archive = MpqArchive::from_path("data/patch-A.mpq")?;
-            archive.write_file(file_path.as_str(), &file_content)?;
+           mpq_writer_thread::write_file(&file_path, file_content);
             println!("Added file to MPQ: {}", file_path);
 
             sender.notice();

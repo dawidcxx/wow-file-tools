@@ -662,6 +662,7 @@ dependencies = [
  "lazy_static",
  "native-windows-derive",
  "native-windows-gui",
+ "once_cell",
  "serde",
  "serde_json",
  "stormlib",
