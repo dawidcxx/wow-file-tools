@@ -41,11 +41,11 @@ static MPQ_WRITER_SENDER: Lazy<Arc<Sender<Message>>> = Lazy::new(|| {
                     times_opened += 1;
                     reply.send(()).expect("MPQThread: Failed to send reply");
                 }
-                Message::WriteFile(filePath, fileContent, reply) => {
-                    println!("MPQThread: Writing file to MPQ archive: {}", filePath);
+                Message::WriteFile(file_path, file_content, reply) => {
+                    println!("MPQThread: Writing file to MPQ archive: {}", file_path);
                     let archive = archive.as_mut().expect("MPQThread: MPQ archive not open");
                     archive
-                        .write_file(&filePath, &fileContent.as_slice())
+                        .write_file(&file_path, &file_content.as_slice())
                         .expect("MPQThread: Failed to write file to MPQ archive");
                     times_written += 1;
                     reply.send(()).expect("MPQThread: Failed to send reply");

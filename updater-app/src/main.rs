@@ -1,10 +1,8 @@
 #![cfg_attr(
-    all(
-      target_os = "windows",
-      not(debug_assertions),
-    ),
+    all(target_os = "windows", not(debug_assertions),),
     windows_subsystem = "windows"
-  )]
+)]
+#![allow(dead_code)]
 
 /*!
     A very simple application that show your name in a message box.
@@ -22,7 +20,6 @@ use std::{
 
 use nwd::NwgUi;
 use nwg::NativeUi;
-use stormlib::MpqArchive;
 
 mod api;
 mod logic;
@@ -138,7 +135,6 @@ impl UpdaterApp {
             if let Some(ref realmlist) = config.prior_realmlist {
                 logic::set_realmlist_content(&realmlist);
             }
-
         }
         config.disabled = !config.disabled;
         logic::write_updater_app_cfg(&config);
@@ -236,7 +232,7 @@ impl UpdaterApp {
             let file_content = api.get_file(&file_path)?;
             println!("Downloaded file: {}", file_path);
 
-           mpq_writer_thread::write_file(&file_path, file_content);
+            mpq_writer_thread::write_file(&file_path, file_content);
             println!("Added file to MPQ: {}", file_path);
 
             sender.notice();
