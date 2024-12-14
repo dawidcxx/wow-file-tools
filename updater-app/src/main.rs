@@ -1,4 +1,10 @@
-#![windows_subsystem = "windows"]
+#![cfg_attr(
+    all(
+      target_os = "windows",
+      not(debug_assertions),
+    ),
+    windows_subsystem = "windows"
+  )]
 
 /*!
     A very simple application that show your name in a message box.
@@ -21,10 +27,15 @@ use stormlib::MpqArchive;
 mod api;
 mod logic;
 
+const REALMLIST: &'static str = r#"set realmlist 157.90.144.252"#;
+
 #[derive(Default, NwgUi)]
 pub struct UpdaterApp {
-    apiRef: api::Api,
+    api_ref: api::Api,
     compute: RefCell<Option<thread::JoinHandle<anyhow::Result<VecDeque<String>>>>>,
+
+    #[nwg_resource]
+    embed: nwg::EmbedResource,
 
     #[nwg_control(size: (640, 480), position: (0, 0), title: "ArenaCraft Launcher", flags: "WINDOW|VISIBLE", icon: None)]
     #[nwg_events( OnInit: [UpdaterApp::on_mount], OnWindowClose: [UpdaterApp::on_exit])]
@@ -51,16 +62,22 @@ pub struct UpdaterApp {
     #[nwg_events( OnButtonClick: [UpdaterApp::update_or_install] )]
     update_or_install_button: nwg::Button,
 
-    #[nwg_control(text: "Uninstall", font: Some(&data.btn_font), position: (10, 130), size: (620, 50))]
+    #[nwg_control(text: "Disable", font: Some(&data.btn_font), position: (10, 130), size: (620, 50))]
+    #[nwg_events( OnButtonClick: [UpdaterApp::enable_or_disable] )]
+    enable_or_disable_button: nwg::Button,
+
+    #[nwg_control(text: "Uninstall", font: Some(&data.btn_font), position: (10, 190), size: (620, 50))]
     #[nwg_events( OnButtonClick: [UpdaterApp::uninstall] )]
     uninstall_button: nwg::Button,
 
-    #[nwg_control(text: "Loading..", font: Some(&data.txt_font), position: (10, 190), size: (620, 50))  ]
+    #[nwg_control(text: "Loading..", font: Some(&data.txt_font), position: (10, 250), size: (620, 50))  ]
     current_status_label: nwg::Label,
 }
 
 impl UpdaterApp {
     fn on_mount(&self) {
+        let icon = self.embed.icon(2, None);
+        self.window.set_icon(icon.as_ref());
         self.update_progress.set_visible(false);
         let cwd = std::env::current_dir().expect("Failed to get current directory");
         logic::check_has_wow_exe(&cwd);
@@ -76,12 +93,22 @@ impl UpdaterApp {
                 "Current version: v{}",
                 0.1 * config.current_release as f32
             ));
+            self.enable_or_disable_button.set_enabled(true);
         } else {
+            self.enable_or_disable_button.set_enabled(false);
             self.update_or_install_button.set_text("Install");
             self.play_button.set_enabled(false);
             self.uninstall_button.set_enabled(false);
             self.current_status_label
                 .set_text("Press the Install button to continue");
+        }
+
+        if config.disabled {
+            self.enable_or_disable_button.set_text("Enable");
+            self.update_or_install_button.set_enabled(false);
+        } else {
+            self.enable_or_disable_button.set_text("Disable");
+            self.update_or_install_button.set_enabled(true);
         }
     }
 
@@ -89,10 +116,37 @@ impl UpdaterApp {
         nwg::stop_thread_dispatch();
     }
 
+    fn enable_or_disable(&self) {
+        let mut config = logic::read_arenacraft_cfg();
+        if config.disabled {
+            // run enable
+            let mpq = logic::get_mpq_path();
+            let disabled_mpq = mpq.with_file_name("patch-A.mpq");
+            std::fs::rename(mpq, disabled_mpq).expect("Failed to enable Arenacraft");
+            let prior_realmlist = logic::set_realmlist_content(&REALMLIST);
+            if let Some(realmlist) = prior_realmlist {
+                config.prior_realmlist = Some(realmlist);
+            }
+        } else {
+            // run disable
+            let mpq = logic::get_mpq_path();
+            let disabled_mpq = mpq.with_file_name("disabled-arenacraft.mpq");
+            std::fs::rename(mpq, disabled_mpq).expect("Failed to disable Arenacraft");
+            if let Some(ref realmlist) = config.prior_realmlist {
+                logic::set_realmlist_content(&realmlist);
+            }
+
+        }
+        config.disabled = !config.disabled;
+        logic::write_arenacraft_cfg(&config);
+
+        self.on_mount();
+    }
+
     fn uninstall(&self) {
         let current_config = logic::read_arenacraft_cfg();
         if current_config.installed {
-            let _ = std::fs::remove_file("data/patch-A.mpq");
+            let _ = std::fs::remove_file(logic::get_mpq_path());
         }
         logic::write_arenacraft_cfg(&logic::Config::default());
         self.on_mount();
@@ -116,7 +170,7 @@ impl UpdaterApp {
 
     fn update(&self, mut config: logic::Config) {
         self.current_status_label.set_text("Checking for updates..");
-        match self.apiRef.get_releases(config.current_release + 1) {
+        match self.api_ref.get_releases(config.current_release + 1) {
             Ok(releases) => {
                 if releases.is_empty() {
                     println!("No updates found");
@@ -149,7 +203,7 @@ impl UpdaterApp {
         let archive = stormlib::MpqArchive::new("data/patch-A.mpq");
 
         match archive {
-            Ok(archive) => {
+            Ok(_archive) => {
                 self.current_status_label
                     .set_text("MPQ archive initialized");
                 config.installed = true;
@@ -167,7 +221,7 @@ impl UpdaterApp {
 
     fn download_updates(&self, mut files_to_download: VecDeque<String>) {
         let sender = self.notice.sender();
-        let api = self.apiRef.clone();
+        let api = self.api_ref.clone();
 
         self.compute.borrow_mut().replace(thread::spawn(move || {
             let file_path = files_to_download
@@ -225,9 +279,6 @@ impl UpdaterApp {
 }
 
 fn main() {
-    // TODO: only for testing
-    unsafe { nwg::set_dpi_awareness() }
-    
     nwg::init().expect("Failed to init Native Windows GUI");
     nwg::Font::set_global_family("Segoe UI").expect("Failed to set default font");
     let _app = UpdaterApp::build_ui(Default::default()).expect("Failed to build UI");

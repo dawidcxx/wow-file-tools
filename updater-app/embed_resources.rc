@@ -2,4 +2,4 @@
 1 RT_MANIFEST "embed_resources.exe.manifest"
 
 MAINICON ICON "./updater-icon-2.ico"
-TEST ICON "./updater-icon-2.ico"
+2 ICON "./updater-icon-2.ico"
