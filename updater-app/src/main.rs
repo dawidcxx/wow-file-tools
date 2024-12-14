@@ -147,6 +147,10 @@ impl UpdaterApp {
         if current_config.installed {
             let _ = std::fs::remove_file(logic::get_mpq_path());
         }
+        // restore realmlist
+        if let Some(ref realmlist) = current_config.prior_realmlist {
+            logic::set_realmlist_content(realmlist);
+        }
         logic::write_updater_app_cfg(&logic::Config::default());
         self.on_mount();
     }
@@ -203,6 +207,13 @@ impl UpdaterApp {
         match archive {
             Ok(archive) => {
                 drop(archive); // release the lock on the MPQ file
+
+                // swap realmlist to ours
+                let prior_realmlist = logic::set_realmlist_content(&REALMLIST);
+                if let Some(realmlist) = prior_realmlist {
+                    config.prior_realmlist = Some(realmlist);
+                }
+
                 self.current_status_label
                     .set_text("MPQ archive initialized");
                 config.installed = true;
