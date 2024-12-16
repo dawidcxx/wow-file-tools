@@ -1,3 +1,4 @@
+use anyhow::Context;
 use ureq::Error;
 
 #[derive(Debug, Clone)]
@@ -8,7 +9,7 @@ pub struct Api {
 impl Default for Api {
     fn default() -> Self {
         Api {
-            base_url: "http://157.90.144.252/release-manager".to_string(),
+            base_url: "http://localhost:7313".to_string(),
         }
     }
 }
@@ -26,9 +27,11 @@ impl Api {
     // GET http://baseUrl/files?file=someFile.txt
     pub fn get_file(&self, file: &str) -> anyhow::Result<Vec<u8>> {
         let url = format!("{}/files", self.base_url);
-        let response = ureq::get(url.as_str()).query("file", file).call()?;
-        let length: usize = response.header("Content-Length").unwrap().parse()?;
-        let mut bytes: Vec<u8> = Vec::with_capacity(length);
+        let response = ureq::get(url.as_str())
+            .query("file", file)
+            .call()
+            .context("Failed to get file")?;
+        let mut bytes: Vec<u8> = Vec::new();
         response.into_reader().read_to_end(&mut bytes)?;
         Ok(bytes)
     }

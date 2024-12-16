@@ -1,5 +1,5 @@
 #define RT_MANIFEST 24
 1 RT_MANIFEST "embed_resources.exe.manifest"
 
-MAINICON ICON "./updater-icon-2.ico"
-2 ICON "./updater-icon-2.ico"
+MAINICON ICON "./updater-icon-3.ico"
+2 ICON "./updater-icon-3.ico"

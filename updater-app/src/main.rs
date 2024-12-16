@@ -25,7 +25,7 @@ mod api;
 mod logic;
 mod mpq_writer_thread;
 
-const REALMLIST: &'static str = r#"set realmlist 157.90.144.252"#;
+const REALMLIST: &'static str = r#"set realmlist localhost"#;
 
 #[derive(Default, NwgUi)]
 pub struct UpdaterApp {
@@ -239,12 +239,14 @@ impl UpdaterApp {
                 .pop_front()
                 .expect("Called download_updates on empty queue?");
             println!("Downloading file: {}", file_path);
-
+            
+            let download_start_time = std::time::Instant::now();
             let file_content = api.get_file(&file_path)?;
-            println!("Downloaded file: {}", file_path);
+            println!("Downloaded file: {} in {}ms", file_path, download_start_time.elapsed().as_millis());
 
+            let write_to_mpq_start_time = std::time::Instant::now();
             mpq_writer_thread::write_file(&file_path, file_content);
-            println!("Added file to MPQ: {}", file_path);
+            println!("Added file to MPQ: {} in {}ms", file_path, write_to_mpq_start_time.elapsed().as_millis());
 
             sender.notice();
             Ok(files_to_download)
