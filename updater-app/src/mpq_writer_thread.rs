@@ -51,7 +51,10 @@ static MPQ_WRITER_SENDER: Lazy<Arc<Sender<Message>>> = Lazy::new(|| {
                     reply.send(()).expect("MPQThread: Failed to send reply");
                 }
                 Message::Close(reply) => {
-                    println!("MPQThread: Closing MPQ archive. Open='{}'", archive.is_some());
+                    println!(
+                        "MPQThread: Closing MPQ archive. Open='{}'",
+                        archive.is_some()
+                    );
                     archive.take();
                     reply.send(()).expect("MPQThread: Failed to send reply");
                 }
@@ -79,7 +82,11 @@ pub fn open() {
 
 pub fn write_file(file_path: &String, file_content: Vec<u8>) {
     let (tx, rx) = mpsc::channel();
-    send_to_mpq_writer_thread(Message::WriteFile(file_path.clone(), file_content, tx));
+    send_to_mpq_writer_thread(Message::WriteFile(
+        file_path.replace("/", "\\"),
+        file_content,
+        tx,
+    ));
     rx.recv_timeout(Duration::from_secs(1))
         .expect("Failed to get response from MPQ writer thread");
 }
